@@ -1,0 +1,68 @@
+name: FocalTech hardware report / bug
+description: Report a FocalTech PS/2 model, regression, or unsupported laptop
+title: "[FocalTech] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing VoodooPS2-FocalTech. Please provide the data below so the report can be compared with known FLT0101/FLT0102 hardware.
+  - type: input
+    id: laptop
+    attributes:
+      label: Laptop model
+      placeholder: ASUS X550VX
+    validations:
+      required: true
+  - type: input
+    id: focaltech-id
+    attributes:
+      label: FocalTech ACPI / hardware ID
+      placeholder: FLT0101 / FLT0102 / FLT0103
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.x
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: VoodooPS2-FocalTech commit
+      description: Run git rev-parse HEAD or provide the release/build identifier.
+    validations:
+      required: true
+  - type: dropdown
+    id: foclegacy
+    attributes:
+      label: foclegacy=1
+      options:
+        - Not used
+        - Used
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happens?
+      description: Include cursor, gestures, keyboard interaction, sleep/wake, and click behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: ioreg
+    attributes:
+      label: IORegistry / diagnostic counters
+      description: Paste ioreg -r -c ApplePS2FocalTech -lw0 and relevant PS/2 tree output.
+      render: shell
+  - type: textarea
+    id: linux
+    attributes:
+      label: Linux identification (if available)
+      description: Paste relevant /proc/bus/input/devices, serio/i8042 and dmesg data.
+      render: shell
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
