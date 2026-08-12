@@ -46,7 +46,9 @@ xcodebuild \
     CONFIGURATION_BUILD_DIR="$BUILD/controller"
 
 CONTROLLER="$BUILD/controller/VoodooPS2Controller.kext"
+KEYBOARD="$BUILD/controller/VoodooPS2Keyboard.kext"
 [[ -d "$CONTROLLER" ]] || die "VoodooPS2Controller.kext was not produced"
+[[ -d "$KEYBOARD" ]] || die "VoodooPS2Keyboard.kext was not produced"
 
 say "Build standalone VoodooPS2FocalTech"
 cp FocalTech/VoodooPS2FocalTech.cpp VoodooPS2Trackpad/VoodooPS2Elan.cpp
@@ -91,7 +93,16 @@ ditto "$FOCAL" "$OUT/Kexts/VoodooPS2FocalTech.kext"
 
 PLUGINS="$OUT/Kexts/VoodooPS2Controller.kext/Contents/PlugIns"
 mkdir -p "$PLUGINS"
-rm -rf "$PLUGINS/VoodooPS2Mouse.kext" "$PLUGINS/VoodooPS2Trackpad.kext"
+rm -rf \
+    "$PLUGINS/VoodooPS2Mouse.kext" \
+    "$PLUGINS/VoodooPS2Trackpad.kext" \
+    "$PLUGINS/VoodooPS2Keyboard.kext" \
+    "$PLUGINS/VoodooInput.kext"
+
+# With an explicit CONFIGURATION_BUILD_DIR Xcode builds dependency products
+# next to the controller but does not reliably nest them in PlugIns. Assemble
+# the final plugin layout explicitly so local and CI builds are identical.
+ditto "$KEYBOARD" "$PLUGINS/VoodooPS2Keyboard.kext"
 
 VI=""
 for candidate in \
@@ -100,11 +111,11 @@ for candidate in \
     [[ -d "$candidate" ]] && VI="$candidate" && break
 done
 [[ -n "$VI" ]] || die "cannot find bootstrapped VoodooInput.kext"
-rm -rf "$PLUGINS/VoodooInput.kext"
 ditto "$VI" "$PLUGINS/VoodooInput.kext"
 
 [[ -d "$PLUGINS/VoodooPS2Keyboard.kext" ]] || die "keyboard plugin missing"
 plutil -lint "$OUT/Kexts/VoodooPS2Controller.kext/Contents/Info.plist"
+plutil -lint "$PLUGINS/VoodooPS2Keyboard.kext/Contents/Info.plist"
 plutil -lint "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/Info.plist"
 plutil -lint "$PLUGINS/VoodooInput.kext/Contents/Info.plist"
 strings "$OUT/Kexts/VoodooPS2Controller.kext/Contents/MacOS/VoodooPS2Controller" | grep -q foclegacy \
