@@ -8,9 +8,13 @@ The FocalTech driver reports through **VoodooInput / native macOS multitouch**, 
 
 | Hardware ID | Status | Controller layout | Notes |
 |---|---|---|---|
-| **FLT0101** | ✅ Confirmed | i8042 active multiplexing / 4 AUX nubs | Mux-safe path; no legacy boot argument |
-| **FLT0102** | ✅ Confirmed on legacy-compatible controller path | simple i8042 AUX | use `foclegacy=1` |
+| **FLT0101** | ✅ Hardware validated | i8042 active multiplexing / 4 AUX nubs | Mux-safe path; no legacy boot argument |
+| **FLT0102** | ✅ Hardware validated | simple i8042 AUX | use `foclegacy=1` |
 | **FLT0103** | 🧪 Experimental | FocalTech PS/2 family | protocol support expected, not hardware-validated yet |
+
+### macOS validation
+
+The current FocalTech stack has been hardware-tested successfully on **macOS Sequoia** and **macOS Tahoe** on the validated FLT0101 and FLT0102 systems.
 
 ### Confirmed functionality
 
@@ -24,6 +28,17 @@ The FocalTech driver reports through **VoodooInput / native macOS multitouch**, 
 - progressive Force Click / Look Up emulation after a stationary physical left-button hold
 - sleep/wake reinitialization path
 - safe handling of muxed i8042 controllers
+
+## Important note for OpenCore Legacy Patcher users
+
+> [!WARNING]
+> If **OpenCore Legacy Patcher (OCLP)** offers to update or replace VoodooPS2-related kexts on a machine that depends on this fork, **do not accept that VoodooPS2 replacement** unless you intentionally want to return to the stock OCLP/VoodooPS2 stack.
+>
+> This fork intentionally contains a separate FocalTech client (`VoodooPS2FocalTech.kext`, with its own bundle identifier) together with FocalTech-specific controller behaviour. OCLP may therefore see a different VoodooPS2 package or identifier and offer its own copy. **That is not an error.** Replacing this fork with the stock package can remove the FocalTech path and leave the trackpad non-functional.
+>
+> Update this FocalTech stack from **this repository's Releases**, not by replacing it with OCLP's stock VoodooPS2 package.
+
+This warning applies only to the VoodooPS2/FocalTech stack. It does not mean that all OCLP updates must be disabled.
 
 ## Architecture
 
@@ -42,6 +57,22 @@ VoodooPS2Controller
 ```
 
 `VoodooPS2FocalTech.kext` is a separate client driver. It still intentionally depends on VoodooPS2Controller for PS/2 transport and on VoodooInput for multitouch reporting.
+
+## Releases vs. Actions artifacts
+
+GitHub Actions **artifacts** are build outputs used for continuous integration and development verification. They are not the long-term public distribution channel.
+
+Stable, user-facing binaries are published under **Releases**.
+
+### Release numbering policy
+
+The public release number follows the current official **Acidanthera VoodooPS2 release line**:
+
+- Acidanthera `2.3.7` → VoodooPS2-FocalTech `2.3.7`
+- if this fork needs an independent hotfix before Acidanthera publishes another version, use `2.3.7-focaltech.1`, `2.3.7-focaltech.2`, etc.
+- when Acidanthera publishes a new VoodooPS2 release, review/merge the upstream changes, rebuild and validate the FocalTech stack, then publish the corresponding release number here.
+
+Release numbers intentionally track upstream, but a FocalTech release is **not claimed to be byte-for-byte identical** to the Acidanthera binary: it contains the FocalTech-specific additions and compatibility changes documented in this repository.
 
 ## Build
 
@@ -74,11 +105,13 @@ Under `Kernel -> Add`:
 3. `VoodooPS2FocalTech.kext`
 4. `VoodooPS2Controller.kext/Contents/PlugIns/VoodooInput.kext`
 
-See [Docs/INSTALLATION.md](Docs/INSTALLATION.md) for hardware-specific settings.
+See [Docs/INSTALLATION.md](Docs/INSTALLATION.md) for hardware-specific settings and the OCLP warning.
 
 ## Upstream synchronization
 
-This repository is a fork of Acidanthera/VoodooPS2. Use GitHub's **Sync fork** function or merge the newest upstream `master` before building. The FocalTech controller patch is deliberately small and guarded so upstream changes are easy to review.
+This repository is a fork of Acidanthera/VoodooPS2. Upstream changes are followed and reviewed so the FocalTech additions remain maintainable. Before a public release, upstream changes affecting the controller, ApplePS2MouseDevice, trackpad lifecycle or VoodooInput path should be reviewed and the resulting build validated on available FocalTech hardware.
+
+The FocalTech controller patch is deliberately small and guarded so upstream changes are easy to review and incompatible startup changes fail closed during the build.
 
 ## Credits and provenance
 
