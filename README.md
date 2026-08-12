@@ -29,16 +29,16 @@ The current FocalTech stack has been hardware-tested successfully on **macOS Seq
 - sleep/wake reinitialization path
 - safe handling of muxed i8042 controllers
 
-## Important note for OpenCore Legacy Patcher users
+## Important note for OCA Auxiliary Tools (OCAT) users
 
 > [!WARNING]
-> If **OpenCore Legacy Patcher (OCLP)** offers to update or replace VoodooPS2-related kexts on a machine that depends on this fork, **do not accept that VoodooPS2 replacement** unless you intentionally want to return to the stock OCLP/VoodooPS2 stack.
+> If **OCA Auxiliary Tools (OCAT)** reports an update for `VoodooPS2Controller.kext` on a machine using this fork, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
 >
-> This fork intentionally contains a separate FocalTech client (`VoodooPS2FocalTech.kext`, with its own bundle identifier) together with FocalTech-specific controller behaviour. OCLP may therefore see a different VoodooPS2 package or identifier and offer its own copy. **That is not an error.** Replacing this fork with the stock package can remove the FocalTech path and leave the trackpad non-functional.
+> This fork intentionally contains a patched `VoodooPS2Controller.kext` together with the separate `VoodooPS2FocalTech.kext`. Because the controller binary is modified, its **file size and hash/MD5 can differ from the stock Acidanthera VoodooPS2 binary even when the displayed version number is the same**. OCAT may therefore mark the stock package as an available update. **That difference is expected and is not an error.**
 >
-> Update this FocalTech stack from **this repository's Releases**, not by replacing it with OCLP's stock VoodooPS2 package.
+> Replacing this fork with the stock Acidanthera VoodooPS2 package can remove the FocalTech controller compatibility path and leave the trackpad non-functional. Update this FocalTech stack from **this repository's Releases** instead.
 
-This warning applies only to the VoodooPS2/FocalTech stack. It does not mean that all OCLP updates must be disabled.
+This warning applies specifically to the VoodooPS2/FocalTech entries. Other unrelated OCAT updates can still be handled normally.
 
 ## Architecture
 
@@ -105,7 +105,7 @@ Under `Kernel -> Add`:
 3. `VoodooPS2FocalTech.kext`
 4. `VoodooPS2Controller.kext/Contents/PlugIns/VoodooInput.kext`
 
-See [Docs/INSTALLATION.md](Docs/INSTALLATION.md) for hardware-specific settings and the OCLP warning.
+See [Docs/INSTALLATION.md](Docs/INSTALLATION.md) for hardware-specific settings and the OCAT warning.
 
 ## Upstream synchronization
 
