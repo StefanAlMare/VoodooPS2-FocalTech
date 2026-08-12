@@ -1,0 +1,144 @@
+name: Publish stable release
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'RELEASE_VERSION'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version/tag (for example 2.3.7)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Resolve and validate release version
+        id: version
+        env:
+          MANUAL_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${MANUAL_VERSION:-}" ]]; then
+            VERSION="$MANUAL_VERSION"
+          else
+            VERSION="$(tr -d '[:space:]' < RELEASE_VERSION)"
+          fi
+          [[ -n "$VERSION" ]] || { echo "Empty release version" >&2; exit 1; }
+
+          UPSTREAM_VERSION="$(curl -LfsS https://api.github.com/repos/acidanthera/VoodooPS2/releases/latest | \
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
+
+          if [[ "$VERSION" != "$UPSTREAM_VERSION" && "$VERSION" != "$UPSTREAM_VERSION"-focaltech.* ]]; then
+            echo "Release $VERSION does not match current Acidanthera release line $UPSTREAM_VERSION" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "upstream=$UPSTREAM_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to overwrite an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+
+      - name: Build release package
+        run: |
+          set -o pipefail
+          chmod +x build_focaltech.sh
+          ./build_focaltech.sh 2>&1 | tee build.log
+
+      - name: Assemble release archive
+        id: package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          OUT="$HOME/Desktop/VoodooPS2-FocalTech-Build"
+          STAGE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION"
+          ARCHIVE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION-RELEASE.zip"
+
+          rm -rf "$STAGE" "$ARCHIVE"
+          mkdir -p "$STAGE"
+          cp -R "$OUT/Kexts" "$STAGE/"
+          cp "$OUT/INSTALL.txt" "$STAGE/"
+          cp "$OUT/SOURCE-COMMIT.txt" "$STAGE/"
+          cp "$OUT/VOODOOINPUT-VERSION.txt" "$STAGE/"
+          cp CREDITS.md "$STAGE/"
+          cp LICENSE.md "$STAGE/"
+
+          ditto -c -k --sequesterRsrc --keepParent "$STAGE" "$ARCHIVE"
+          shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+          echo "checksum=$ARCHIVE.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Write release notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          UPSTREAM_VERSION: ${{ steps.version.outputs.upstream }}
+        run: |
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          ## VoodooPS2-FocalTech $VERSION
+
+          Stable FocalTech release following the **Acidanthera VoodooPS2 $UPSTREAM_VERSION release line**.
+
+          ### Hardware and macOS validation
+          - **FLT0101** — hardware validated; mux-safe i8042 path; **do not use** \`foclegacy=1\`.
+          - **FLT0102** — hardware validated; simple AUX compatibility path; **use** \`foclegacy=1\`.
+          - **FLT0103** — protocol support is experimental and not yet hardware-validated.
+          - Validated on **macOS Sequoia** and **macOS Tahoe** on tested FLT0101/FLT0102 hardware.
+
+          ### Confirmed functions
+          Cursor movement, native multitouch through VoodooInput, macOS gestures, left/right click, dragging, progressive Force Click / Look Up emulation, sleep/wake reinitialization, and mux-safe probing.
+
+          ### Important for OCLP users
+          If OpenCore Legacy Patcher offers to replace or update the VoodooPS2 stack on a machine using this fork, **do not accept that VoodooPS2 replacement** unless you intentionally want to return to OCLP's stock package. The separate FocalTech package/bundle identity is intentional and is **not an error**. Replacing this fork can remove FocalTech support and stop the trackpad.
+
+          Update this FocalTech stack from this repository's Releases page.
+
+          ### Versioning note
+          The public release number follows Acidanthera's VoodooPS2 release line. This fork is **not byte-for-byte identical** to the upstream binary because it includes the FocalTech-specific controller and trackpad changes documented in this repository.
+
+          ### Credits
+          Acidanthera and VoodooPS2 contributors; Apple and historical Apple PS/2 contributors; VoodooInput/VoodooI2C contributors; **EMlyDinEsH / ApplePS2SmartTouchPad**; Linux kernel FocalTech/input contributors; earlier VoodooPS2/ApplePS2/RehabMan-era contributors; and StefanAlMare for the modern FocalTech integration in this fork. See \`CREDITS.md\` in the repository/package for full attribution.
+          EOF
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          CHECKSUM: ${{ steps.package.outputs.checksum }}
+        run: |
+          gh release create "$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "VoodooPS2-FocalTech $VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            "$ARCHIVE" \
+            "$CHECKSUM"
+
+      - name: Upload release build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoodooPS2-FocalTech-${{ steps.version.outputs.version }}-build-log
+          path: build.log
+          if-no-files-found: ignore
