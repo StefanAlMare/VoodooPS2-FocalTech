@@ -53,9 +53,19 @@ cp FocalTech/VoodooPS2FocalTech.cpp VoodooPS2Trackpad/VoodooPS2Elan.cpp
 cp FocalTech/VoodooPS2FocalTech.h VoodooPS2Trackpad/VoodooPS2FocalTech.h
 rm -rf VoodooPS2Trackpad/Source
 cp -R FocalTech/Source VoodooPS2Trackpad/Source
-# The implementation fragments are compiled from VoodooPS2Trackpad/Source,
-# so stage the public header there too for quoted local includes.
-cp FocalTech/VoodooPS2FocalTech.h VoodooPS2Trackpad/Source/VoodooPS2FocalTech.h
+
+# The implementation fragments live one directory below the staged public
+# header. Rewrite only this local include inside the isolated build tree.
+python3 - <<'PY'
+from pathlib import Path
+p = Path("VoodooPS2Trackpad/Source/VoodooPS2FocalTech.part00.inc")
+s = p.read_text()
+old = '#include "VoodooPS2FocalTech.h"'
+new = '#include "../VoodooPS2FocalTech.h"'
+if s.count(old) != 1:
+    raise SystemExit("ERROR: unexpected FocalTech header include layout")
+p.write_text(s.replace(old, new, 1))
+PY
 
 xcodebuild \
     -project VoodooPS2Controller.xcodeproj \
