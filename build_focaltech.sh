@@ -53,6 +53,9 @@ cp FocalTech/VoodooPS2FocalTech.cpp VoodooPS2Trackpad/VoodooPS2Elan.cpp
 cp FocalTech/VoodooPS2FocalTech.h VoodooPS2Trackpad/VoodooPS2FocalTech.h
 rm -rf VoodooPS2Trackpad/Source
 cp -R FocalTech/Source VoodooPS2Trackpad/Source
+# The implementation fragments are compiled from VoodooPS2Trackpad/Source,
+# so stage the public header there too for quoted local includes.
+cp FocalTech/VoodooPS2FocalTech.h VoodooPS2Trackpad/Source/VoodooPS2FocalTech.h
 
 xcodebuild \
     -project VoodooPS2Controller.xcodeproj \
