@@ -1,11 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-FOCAL_VERSION="1.0.0"
+FOCAL_VERSION="2.3.7"
+VINPUT_VERSION="1.1.6"
 BUNDLE_ID="com.stefanalmare.driver.VoodooPS2FocalTech"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 OUT="$HOME/Desktop/VoodooPS2-FocalTech-Build"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/VoodooPS2-FocalTech.XXXXXX")"
+SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 
 say() { printf '\n========== %s ==========\n' "$1"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -30,9 +32,31 @@ say "Bootstrap MacKernelSDK"
 rm -rf MacKernelSDK
 git clone --depth=1 https://github.com/acidanthera/MacKernelSDK.git MacKernelSDK
 
-say "Bootstrap VoodooInput"
-src=$(/usr/bin/curl -Lfs https://raw.githubusercontent.com/acidanthera/VoodooInput/master/VoodooInput/Scripts/bootstrap.sh) \
-    && /bin/bash -c "$src" || die "VoodooInput bootstrap failed"
+say "Bootstrap pinned VoodooInput ${VINPUT_VERSION}"
+rm -rf VoodooInput
+mkdir -p VoodooInput/Debug VoodooInput/Release "$WORK/voodooinput"
+
+for spec in "DEBUG:Debug" "RELEASE:Release"; do
+    conf="${spec%%:*}"
+    dest="${spec##*:}"
+    archive="$WORK/voodooinput/VoodooInput-${VINPUT_VERSION}-${conf}.zip"
+    extract="$WORK/voodooinput/${conf}"
+
+    curl -LfsS \
+        "https://github.com/acidanthera/VoodooInput/releases/download/${VINPUT_VERSION}/VoodooInput-${VINPUT_VERSION}-${conf}.zip" \
+        -o "$archive" \
+        || die "failed to download VoodooInput ${VINPUT_VERSION} ${conf}"
+
+    rm -rf "$extract"
+    mkdir -p "$extract"
+    ditto -x -k "$archive" "$extract"
+    [[ -d "$extract/VoodooInput.kext" ]] \
+        || die "VoodooInput ${VINPUT_VERSION} ${conf} archive has unexpected layout"
+    ditto "$extract/VoodooInput.kext" "VoodooInput/${dest}/VoodooInput.kext"
+done
+
+[[ -f "VoodooInput/Debug/VoodooInput.kext/Contents/Resources/VoodooInputMultitouch/VoodooInputMessages.h" ]] \
+    || die "VoodooInput ${VINPUT_VERSION} debug SDK headers missing"
 
 BUILD="$WORK/build"
 mkdir -p "$BUILD/controller" "$BUILD/focaltech"
@@ -103,17 +127,10 @@ rm -rf \
 # next to the controller but does not reliably nest them in PlugIns. Assemble
 # the final plugin layout explicitly so local and CI builds are identical.
 ditto "$KEYBOARD" "$PLUGINS/VoodooPS2Keyboard.kext"
-
-VI=""
-for candidate in \
-    "$WORK/repo/VoodooInput/Release/VoodooInput.kext" \
-    "$WORK/repo/VoodooInput/Debug/VoodooInput.kext"; do
-    [[ -d "$candidate" ]] && VI="$candidate" && break
-done
-[[ -n "$VI" ]] || die "cannot find bootstrapped VoodooInput.kext"
-ditto "$VI" "$PLUGINS/VoodooInput.kext"
+ditto "$WORK/repo/VoodooInput/Release/VoodooInput.kext" "$PLUGINS/VoodooInput.kext"
 
 [[ -d "$PLUGINS/VoodooPS2Keyboard.kext" ]] || die "keyboard plugin missing"
+[[ -d "$PLUGINS/VoodooInput.kext" ]] || die "VoodooInput plugin missing"
 plutil -lint "$OUT/Kexts/VoodooPS2Controller.kext/Contents/Info.plist"
 plutil -lint "$PLUGINS/VoodooPS2Keyboard.kext/Contents/Info.plist"
 plutil -lint "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/Info.plist"
@@ -124,6 +141,8 @@ strings "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/MacOS/VoodooPS2FocalTech" |
     || die "FocalTech class not present in final binary"
 
 cat > "$OUT/INSTALL.txt" <<'EOF'
+VoodooPS2-FocalTech installation
+
 OpenCore Kernel -> Add order:
 1. VoodooPS2Controller.kext
 2. VoodooPS2Controller.kext/Contents/PlugIns/VoodooPS2Keyboard.kext
@@ -133,9 +152,20 @@ OpenCore Kernel -> Add order:
 FLT0101: do NOT use foclegacy=1
 FLT0102: add boot-arg foclegacy=1
 FLT0103: experimental; start without foclegacy=1
+
+Validated on macOS Sequoia and macOS Tahoe on tested FLT0101/FLT0102 hardware.
+
+IMPORTANT FOR OCLP USERS:
+If OpenCore Legacy Patcher offers to replace/update the VoodooPS2 stack on a
+machine using this FocalTech fork, do not accept that VoodooPS2 replacement
+unless you intentionally want to return to OCLP's stock VoodooPS2 package.
+The different FocalTech bundle/package identity is intentional, not an error.
+Replacing this fork can remove FocalTech support and stop the trackpad.
+Update this stack from the VoodooPS2-FocalTech Releases page instead.
 EOF
 
-git rev-parse HEAD > "$OUT/SOURCE-COMMIT.txt" 2>/dev/null || true
+printf '%s\n' "$SOURCE_COMMIT" > "$OUT/SOURCE-COMMIT.txt"
+printf '%s\n' "$VINPUT_VERSION" > "$OUT/VOODOOINPUT-VERSION.txt"
 rm -f "$OUT/VoodooPS2-FocalTech-Kexts.zip"
 (
     cd "$OUT/Kexts"
@@ -144,6 +174,8 @@ rm -f "$OUT/VoodooPS2-FocalTech-Kexts.zip"
 
 say "Done"
 echo "$OUT"
+echo "FocalTech version: $FOCAL_VERSION"
+echo "VoodooInput pinned: $VINPUT_VERSION"
 echo "FLT0101: no foclegacy=1"
 echo "FLT0102: foclegacy=1"
 echo "FLT0103: experimental"
