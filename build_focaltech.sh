@@ -155,13 +155,21 @@ FLT0103: experimental; start without foclegacy=1
 
 Validated on macOS Sequoia and macOS Tahoe on tested FLT0101/FLT0102 hardware.
 
-IMPORTANT FOR OCLP USERS:
-If OpenCore Legacy Patcher offers to replace/update the VoodooPS2 stack on a
-machine using this FocalTech fork, do not accept that VoodooPS2 replacement
-unless you intentionally want to return to OCLP's stock VoodooPS2 package.
-The different FocalTech bundle/package identity is intentional, not an error.
-Replacing this fork can remove FocalTech support and stop the trackpad.
-Update this stack from the VoodooPS2-FocalTech Releases page instead.
+IMPORTANT FOR OCA AUXILIARY TOOLS (OCAT) USERS:
+If OCAT reports an update for VoodooPS2Controller.kext on a machine using this
+FocalTech fork, do not let OCAT replace this fork's VoodooPS2 stack with the
+stock Acidanthera build unless you intentionally want to remove FocalTech
+support.
+
+This fork uses a patched VoodooPS2Controller.kext and a separate
+VoodooPS2FocalTech.kext. The patched controller can have a different file size
+and hash/MD5 from Acidanthera's stock binary even when the displayed version
+number is the same. OCAT may therefore show the stock package as an available
+update. This difference is expected and is not an error.
+
+Replacing this fork with the stock Acidanthera VoodooPS2 package can remove the
+FocalTech compatibility path and stop the trackpad. Update this stack from the
+VoodooPS2-FocalTech Releases page instead.
 EOF
 
 printf '%s\n' "$SOURCE_COMMIT" > "$OUT/SOURCE-COMMIT.txt"
