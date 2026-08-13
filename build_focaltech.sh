@@ -4,8 +4,22 @@ set -euo pipefail
 FOCAL_VERSION="2.3.7"
 VINPUT_VERSION="1.1.6"
 BUNDLE_ID="com.stefanalmare.driver.VoodooPS2FocalTech"
+CONFIGURATION="${BUILD_CONFIGURATION:-Release}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-OUT="$HOME/Desktop/VoodooPS2-FocalTech-Build"
+
+case "$CONFIGURATION" in
+    Release|Debug) ;;
+    *) echo "ERROR: BUILD_CONFIGURATION must be Release or Debug" >&2; exit 1 ;;
+esac
+
+if [[ -n "${BUILD_OUTPUT:-}" ]]; then
+    OUT="$BUILD_OUTPUT"
+elif [[ "$CONFIGURATION" == "Release" ]]; then
+    OUT="$HOME/Desktop/VoodooPS2-FocalTech-Build"
+else
+    OUT="$HOME/Desktop/VoodooPS2-FocalTech-Build-Debug"
+fi
+
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/VoodooPS2-FocalTech.XXXXXX")"
 SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
 
@@ -53,6 +67,9 @@ for spec in "DEBUG:Debug" "RELEASE:Release"; do
     [[ -d "$extract/VoodooInput.kext" ]] \
         || die "VoodooInput ${VINPUT_VERSION} ${conf} archive has unexpected layout"
     ditto "$extract/VoodooInput.kext" "VoodooInput/${dest}/VoodooInput.kext"
+    if [[ -d "$extract/VoodooInput.kext.dSYM" ]]; then
+        ditto "$extract/VoodooInput.kext.dSYM" "VoodooInput/${dest}/VoodooInput.kext.dSYM"
+    fi
 done
 
 [[ -f "VoodooInput/Debug/VoodooInput.kext/Contents/Resources/VoodooInputMultitouch/VoodooInputMessages.h" ]] \
@@ -61,11 +78,11 @@ done
 BUILD="$WORK/build"
 mkdir -p "$BUILD/controller" "$BUILD/focaltech"
 
-say "Build patched VoodooPS2Controller"
+say "Build patched VoodooPS2Controller (${CONFIGURATION})"
 xcodebuild \
     -project VoodooPS2Controller.xcodeproj \
     -target VoodooPS2Controller \
-    -configuration Release \
+    -configuration "$CONFIGURATION" \
     -jobs 1 \
     CONFIGURATION_BUILD_DIR="$BUILD/controller"
 
@@ -74,14 +91,12 @@ KEYBOARD="$BUILD/controller/VoodooPS2Keyboard.kext"
 [[ -d "$CONTROLLER" ]] || die "VoodooPS2Controller.kext was not produced"
 [[ -d "$KEYBOARD" ]] || die "VoodooPS2Keyboard.kext was not produced"
 
-say "Build standalone VoodooPS2FocalTech"
+say "Build standalone VoodooPS2FocalTech (${CONFIGURATION})"
 cp FocalTech/VoodooPS2FocalTech.cpp VoodooPS2Trackpad/VoodooPS2Elan.cpp
 cp FocalTech/VoodooPS2FocalTech.h VoodooPS2Trackpad/VoodooPS2FocalTech.h
 rm -rf VoodooPS2Trackpad/Source
 cp -R FocalTech/Source VoodooPS2Trackpad/Source
 
-# The implementation fragments live one directory below the staged public
-# header. Rewrite only this local include inside the isolated build tree.
 python3 - <<'PY'
 from pathlib import Path
 p = Path("VoodooPS2Trackpad/Source/VoodooPS2FocalTech.part00.inc")
@@ -96,7 +111,7 @@ PY
 xcodebuild \
     -project VoodooPS2Controller.xcodeproj \
     -target VoodooPS2Trackpad \
-    -configuration Release \
+    -configuration "$CONFIGURATION" \
     -jobs 1 \
     CONFIGURATION_BUILD_DIR="$BUILD/focaltech" \
     PRODUCT_NAME=VoodooPS2FocalTech \
@@ -109,7 +124,7 @@ xcodebuild \
 FOCAL="$BUILD/focaltech/VoodooPS2FocalTech.kext"
 [[ -d "$FOCAL" ]] || die "VoodooPS2FocalTech.kext was not produced"
 
-say "Assemble final kext set"
+say "Assemble final ${CONFIGURATION} kext set"
 rm -rf "$OUT"
 mkdir -p "$OUT/Kexts"
 ditto "$CONTROLLER" "$OUT/Kexts/VoodooPS2Controller.kext"
@@ -123,11 +138,8 @@ rm -rf \
     "$PLUGINS/VoodooPS2Keyboard.kext" \
     "$PLUGINS/VoodooInput.kext"
 
-# With an explicit CONFIGURATION_BUILD_DIR Xcode builds dependency products
-# next to the controller but does not reliably nest them in PlugIns. Assemble
-# the final plugin layout explicitly so local and CI builds are identical.
 ditto "$KEYBOARD" "$PLUGINS/VoodooPS2Keyboard.kext"
-ditto "$WORK/repo/VoodooInput/Release/VoodooInput.kext" "$PLUGINS/VoodooInput.kext"
+ditto "$WORK/repo/VoodooInput/${CONFIGURATION}/VoodooInput.kext" "$PLUGINS/VoodooInput.kext"
 
 [[ -d "$PLUGINS/VoodooPS2Keyboard.kext" ]] || die "keyboard plugin missing"
 [[ -d "$PLUGINS/VoodooInput.kext" ]] || die "VoodooInput plugin missing"
@@ -140,8 +152,21 @@ strings "$OUT/Kexts/VoodooPS2Controller.kext/Contents/MacOS/VoodooPS2Controller"
 strings "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/MacOS/VoodooPS2FocalTech" | grep -q ApplePS2FocalTech \
     || die "FocalTech class not present in final binary"
 
-cat > "$OUT/INSTALL.txt" <<'EOF'
-VoodooPS2-FocalTech installation
+if [[ "$CONFIGURATION" == "Debug" ]]; then
+    mkdir -p "$OUT/Symbols"
+    for dsym in \
+        "$BUILD/controller/VoodooPS2Controller.kext.dSYM" \
+        "$BUILD/controller/VoodooPS2Keyboard.kext.dSYM" \
+        "$BUILD/focaltech/VoodooPS2FocalTech.kext.dSYM" \
+        "$WORK/repo/VoodooInput/Debug/VoodooInput.kext.dSYM"; do
+        [[ -d "$dsym" ]] && ditto "$dsym" "$OUT/Symbols/$(basename "$dsym")"
+    done
+fi
+
+cat > "$OUT/INSTALL.txt" <<EOF
+VoodooPS2-FocalTech ${FOCAL_VERSION} - ${CONFIGURATION}
+
+THIS IS A PRECOMPILED PACKAGE. Xcode is not required to install it.
 
 OpenCore Kernel -> Add order:
 1. VoodooPS2Controller.kext
@@ -155,25 +180,38 @@ FLT0103: experimental; start without foclegacy=1
 
 Validated on macOS Sequoia and macOS Tahoe on tested FLT0101/FLT0102 hardware.
 
+HARDWARE SCOPE / LIMITATIONS:
+This fork targets FocalTech PS/2 trackpads. It is not intended as a replacement
+for the normal VoodooPS2 Synaptics, ELAN/Elantech, ALPS, Sentelic or generic
+mouse/trackpad plugins. Other or unknown FocalTech PS/2 devices may be tried,
+but are experimental until validated on physical hardware.
+
 IMPORTANT FOR OCA AUXILIARY TOOLS (OCAT) USERS:
-If OCAT reports an update for VoodooPS2Controller.kext on a machine using this
-FocalTech fork, do not let OCAT replace this fork's VoodooPS2 stack with the
-stock Acidanthera build unless you intentionally want to remove FocalTech
-support.
+OCAT may offer the stock Acidanthera VoodooPS2Controller as an update because
+this fork's patched controller has a different size and hash/MD5 even when the
+version number is the same. This is expected, not an error. Do not let OCAT
+replace this FocalTech stack with stock VoodooPS2 unless you intentionally want
+to remove FocalTech support. Update this stack from this repository's Releases.
 
-This fork uses a patched VoodooPS2Controller.kext and a separate
-VoodooPS2FocalTech.kext. The patched controller can have a different file size
-and hash/MD5 from Acidanthera's stock binary even when the displayed version
-number is the same. OCAT may therefore show the stock package as an available
-update. This difference is expected and is not an error.
-
-Replacing this fork with the stock Acidanthera VoodooPS2 package can remove the
-FocalTech compatibility path and stop the trackpad. Update this stack from the
-VoodooPS2-FocalTech Releases page instead.
+${CONFIGURATION} PACKAGE:
 EOF
 
+if [[ "$CONFIGURATION" == "Release" ]]; then
+    cat >> "$OUT/INSTALL.txt" <<'EOF'
+Recommended for normal use. This is the ready-to-use package for end users.
+EOF
+else
+    cat >> "$OUT/INSTALL.txt" <<'EOF'
+For development, diagnostics and hardware bring-up. Not recommended as the
+normal daily-use package when the RELEASE build works correctly.
+EOF
+fi
+
+cp "$WORK/repo/Docs/SUPPORTED-HARDWARE.md" "$OUT/SUPPORTED-HARDWARE.md"
 printf '%s\n' "$SOURCE_COMMIT" > "$OUT/SOURCE-COMMIT.txt"
 printf '%s\n' "$VINPUT_VERSION" > "$OUT/VOODOOINPUT-VERSION.txt"
+printf '%s\n' "$CONFIGURATION" > "$OUT/BUILD-CONFIGURATION.txt"
+
 rm -f "$OUT/VoodooPS2-FocalTech-Kexts.zip"
 (
     cd "$OUT/Kexts"
@@ -182,6 +220,7 @@ rm -f "$OUT/VoodooPS2-FocalTech-Kexts.zip"
 
 say "Done"
 echo "$OUT"
+echo "Configuration: $CONFIGURATION"
 echo "FocalTech version: $FOCAL_VERSION"
 echo "VoodooInput pinned: $VINPUT_VERSION"
 echo "FLT0101: no foclegacy=1"
