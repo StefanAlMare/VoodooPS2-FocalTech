@@ -1,4 +1,20 @@
-VoodooPS2 Changelog
+VoodooPS2-FocalTech Changelog
+============================
+
+## Fork-specific development after stable 2.3.7
+
+- Added an **experimental FTE0001 backend** as a separate `ApplePS2FTE0001` client inside `VoodooPS2FocalTech.kext`.
+- FTE0001 is a separate FocalTech PS/2 protocol family from FLT0101/FLT0102/FLT0103 and uses 8/16-byte reports with up to four contacts.
+- Added explicit opt-in boot argument `focfte=1`; without it the FTE0001 personality refuses to probe.
+- Initial FTE0001 probing is restricted to simple single-AUX topologies while hardware validation is pending.
+- Added FTE0001 VoodooInput reporting, hardware left/right buttons, wake reinitialization and IORegistry diagnostics.
+- Added `Docs/FTE0001.md`, hardware-report fields, compatibility documentation and package guidance.
+- Credited **chilledHamza** and the historical `VoodooPS2FocalTech` project as the important public reference for prior FTE0001 work; the implementation in this APSL fork is independent rather than copied GPL source.
+- RELEASE and DEBUG CI builds compile successfully with both `ApplePS2FocalTech` and `ApplePS2FTE0001` present.
+
+The stable `2.3.7` release remains the hardware-validated FLT0101/FLT0102 release. FTE0001 remains experimental until physical hardware validation is reported.
+
+Upstream VoodooPS2 Changelog
 ============================
 #### v2.3.7
 - Fixed multiple PS2/SMBus devices attaching
