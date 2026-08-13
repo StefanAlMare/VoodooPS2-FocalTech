@@ -22,10 +22,10 @@ The standard VoodooPS2 mouse and trackpad plugins are deliberately omitted from 
 
 The current stack has been hardware-tested successfully on **macOS Sequoia** and **macOS Tahoe** on the validated FLT0101 and FLT0102 systems.
 
-## Important: OCA Auxiliary Tools (OCAT)
+## Important: OC Auxiliary Tools (OCAT)
 
 > [!WARNING]
-> On a machine using this FocalTech fork, if **OCA Auxiliary Tools (OCAT)** reports an update for `VoodooPS2Controller.kext`, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
+> On a machine using this FocalTech fork, if **OC Auxiliary Tools (OCAT)** reports an update for `VoodooPS2Controller.kext`, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
 >
 > This fork uses a patched `VoodooPS2Controller.kext` and a separate `VoodooPS2FocalTech.kext`. The patched controller can have a **different file size and hash/MD5 from Acidanthera's stock binary even when the version number is identical**. OCAT may therefore show the stock package as an available update. **This is expected and is not an error.**
 >
