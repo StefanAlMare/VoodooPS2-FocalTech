@@ -40,10 +40,10 @@ The current FocalTech stack has been hardware-tested successfully on **macOS Seq
 - sleep/wake reinitialization path
 - safe handling of muxed i8042 controllers
 
-## Important note for OCA Auxiliary Tools (OCAT) users
+## Important note for OC Auxiliary Tools (OCAT) users
 
 > [!WARNING]
-> If **OCA Auxiliary Tools (OCAT)** reports an update for `VoodooPS2Controller.kext` on a machine using this fork, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
+> If **OC Auxiliary Tools (OCAT)** reports an update for `VoodooPS2Controller.kext` on a machine using this fork, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
 >
 > This fork intentionally contains a patched `VoodooPS2Controller.kext` together with the separate `VoodooPS2FocalTech.kext`. Because the controller binary is modified, its **file size and hash/MD5 can differ from the stock Acidanthera VoodooPS2 binary even when the displayed version number is the same**. OCAT may therefore mark the stock package as an available update. **That difference is expected and is not an error.**
 >
