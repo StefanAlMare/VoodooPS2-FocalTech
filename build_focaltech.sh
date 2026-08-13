@@ -186,7 +186,7 @@ for the normal VoodooPS2 Synaptics, ELAN/Elantech, ALPS, Sentelic or generic
 mouse/trackpad plugins. Other or unknown FocalTech PS/2 devices may be tried,
 but are experimental until validated on physical hardware.
 
-IMPORTANT FOR OCA AUXILIARY TOOLS (OCAT) USERS:
+IMPORTANT FOR OC AUXILIARY TOOLS (OCAT) USERS:
 OCAT may offer the stock Acidanthera VoodooPS2Controller as an update because
 this fork's patched controller has a different size and hash/MD5 even when the
 version number is the same. This is expected, not an error. Do not let OCAT
