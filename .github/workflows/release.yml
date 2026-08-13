@@ -151,8 +151,8 @@ jobs:
           ### Confirmed functions
           Cursor movement, native multitouch through VoodooInput, macOS gestures, left/right click, dragging, progressive Force Click / Look Up emulation, sleep/wake reinitialization, and mux-safe probing.
 
-          ### Important for OCA Auxiliary Tools (OCAT) users
-          If **OCA Auxiliary Tools (OCAT)** reports an update for \`VoodooPS2Controller.kext\` on a machine using this fork, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
+          ### Important for OC Auxiliary Tools (OCAT) users
+          If **OC Auxiliary Tools (OCAT)** reports an update for \`VoodooPS2Controller.kext\` on a machine using this fork, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
 
           This fork uses a patched controller and a separate FocalTech client. The patched controller can have a **different file size and hash/MD5 from Acidanthera's stock binary even when the displayed version number is the same**. OCAT may therefore show the stock package as an available update. **That difference is expected and is not an error.** Replacing this fork can remove the FocalTech compatibility path and stop the trackpad.
 
