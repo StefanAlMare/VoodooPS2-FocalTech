@@ -1,6 +1,6 @@
 # VoodooPS2-FocalTech
 
-A maintained fork of [Acidanthera/VoodooPS2](https://github.com/acidanthera/VoodooPS2) adding a standalone **FocalTech PS/2 multitouch trackpad driver** for older laptops whose FocalTech touchpads are not handled correctly by the standard VoodooPS2 trackpad stack.
+A maintained fork of [Acidanthera/VoodooPS2](https://github.com/acidanthera/VoodooPS2) adding native **FocalTech PS/2 multitouch trackpad support** across two protocol families: **FLT0101 and FLT0102 are hardware-validated**, **FLT0103 is experimental**, and **FTE0001 is a separate experimental opt-in backend**.
 
 The FocalTech driver reports through **VoodooInput / native macOS multitouch**, instead of implementing macOS gestures itself.
 
