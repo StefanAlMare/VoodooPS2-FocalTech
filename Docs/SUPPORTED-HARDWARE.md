@@ -51,6 +51,6 @@ For unknown hardware:
 
 ## Important OCAT note
 
-OCA Auxiliary Tools (OCAT) may report the stock Acidanthera `VoodooPS2Controller.kext` as an available update because this fork's controller binary has a different file size and hash/MD5 even when the version number matches upstream. This difference is expected.
+OC Auxiliary Tools (OCAT) may report the stock Acidanthera `VoodooPS2Controller.kext` as an available update because this fork's controller binary has a different file size and hash/MD5 even when the version number matches upstream. This difference is expected.
 
 Do not let OCAT replace the FocalTech stack with stock VoodooPS2 unless you intentionally want to remove this fork. Use this repository's Releases for FocalTech updates.
