@@ -12,3 +12,4 @@
 #include "Source/VoodooPS2FocalTech.part03.inc"
 #include "Source/VoodooPS2FocalTech.part04.inc"
 #include "Source/VoodooPS2FocalTech.part05.inc"
+#include "Source/FTE0001.inc"
