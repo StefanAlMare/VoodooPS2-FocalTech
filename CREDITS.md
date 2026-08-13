@@ -23,6 +23,14 @@ Historical discussion/reference:
 
 Credit here is for prior authorship and technical influence/reference. This project does not claim authorship of EMlyDinEsH's work.
 
+## chilledHamza / historical VoodooPS2FocalTech FTE0001 work
+
+**chilledHamza** published [`VoodooPS2FocalTech`](https://github.com/chilledHamza/VoodooPS2FocalTech), an earlier driver for the **FTE0001** FocalTech PS/2 protocol family. That work demonstrated FTE0001 identification, its separate 8/16-byte report format, four-contact reporting and integration with a native multitouch engine.
+
+The repository is an important historical/public technical reference for the FTE0001 family and directly motivated the experimental FTE0001 backend added to this project.
+
+The historical repository is distributed under GPLv3 while this Acidanthera-derived fork is distributed under APSL 2.0. The FTE0001 backend in this project is therefore an **independent implementation** rather than copied GPL source. Credit here recognizes chilledHamza's earlier authorship, protocol work and contribution to the Hackintosh community.
+
 ## Linux kernel FocalTech driver
 
 The Linux input subsystem's FocalTech PS/2 implementation provided an open reference for:
@@ -53,6 +61,7 @@ Work specific to this fork includes:
 - drag preservation
 - progressive timer-based Force Click / Look Up emulation
 - diagnostics used to validate IRQ bytes and native packet framing on real hardware
+- independent experimental `ApplePS2FTE0001` backend with opt-in probing (`focfte=1`)
 
 ## Tested hardware contributors
 
