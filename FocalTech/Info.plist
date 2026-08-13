@@ -19,7 +19,7 @@
 
     <key>IOKitPersonalities</key>
     <dict>
-        <key>FocalTech PS2 Trackpad</key>
+        <key>FocalTech FLT PS2 Trackpad</key>
         <dict>
             <key>CFBundleIdentifier</key>
             <string>com.stefanalmare.driver.VoodooPS2FocalTech</string>
@@ -31,6 +31,40 @@
             <string>IODefaultMatchCategory</string>
             <key>IOProbeScore</key>
             <integer>9000</integer>
+            <key>ApplePreferenceCapability</key>
+            <true/>
+            <key>ApplePreferenceIdentifier</key>
+            <string>com.apple.AppleMultitouchTrackpad</string>
+            <key>MT Built-in</key>
+            <true/>
+            <key>MTHIDDevice</key>
+            <true/>
+            <key>SupportsGestureScrolling</key>
+            <true/>
+            <key>TrackpadEmbedded</key>
+            <true/>
+            <key>TrackpadFourFingerGestures</key>
+            <true/>
+            <key>TrackpadSecondaryClickCorners</key>
+            <true/>
+            <key>TrackpadThreeFingerDrag</key>
+            <false/>
+            <key>ButtonCount</key>
+            <integer>3</integer>
+        </dict>
+
+        <key>FocalTech FTE0001 Experimental Trackpad</key>
+        <dict>
+            <key>CFBundleIdentifier</key>
+            <string>com.stefanalmare.driver.VoodooPS2FocalTech</string>
+            <key>IOClass</key>
+            <string>ApplePS2FTE0001</string>
+            <key>IOProviderClass</key>
+            <string>ApplePS2MouseDevice</string>
+            <key>IOMatchCategory</key>
+            <string>IODefaultMatchCategory</string>
+            <key>IOProbeScore</key>
+            <integer>8900</integer>
             <key>ApplePreferenceCapability</key>
             <true/>
             <key>ApplePreferenceIdentifier</key>
