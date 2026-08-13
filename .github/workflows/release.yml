@@ -59,36 +59,69 @@ jobs:
             exit 1
           fi
 
-      - name: Build release package
+      - name: Build ready-to-use Release package
+        env:
+          BUILD_CONFIGURATION: Release
+          BUILD_OUTPUT: ${{ runner.temp }}/FocalTech-Release
         run: |
           set -o pipefail
           chmod +x build_focaltech.sh
-          ./build_focaltech.sh 2>&1 | tee build.log
+          ./build_focaltech.sh 2>&1 | tee build-release.log
 
-      - name: Assemble release archive
+      - name: Build developer Debug package
+        env:
+          BUILD_CONFIGURATION: Debug
+          BUILD_OUTPUT: ${{ runner.temp }}/FocalTech-Debug
+        run: |
+          set -o pipefail
+          ./build_focaltech.sh 2>&1 | tee build-debug.log
+
+      - name: Assemble Release and Debug archives
         id: package
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          OUT="$HOME/Desktop/VoodooPS2-FocalTech-Build"
-          STAGE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION"
-          ARCHIVE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION-RELEASE.zip"
+          RELEASE_OUT="$RUNNER_TEMP/FocalTech-Release"
+          DEBUG_OUT="$RUNNER_TEMP/FocalTech-Debug"
 
-          rm -rf "$STAGE" "$ARCHIVE"
-          mkdir -p "$STAGE"
-          cp -R "$OUT/Kexts" "$STAGE/"
-          cp "$OUT/INSTALL.txt" "$STAGE/"
-          cp "$OUT/SOURCE-COMMIT.txt" "$STAGE/"
-          cp "$OUT/VOODOOINPUT-VERSION.txt" "$STAGE/"
-          cp CREDITS.md "$STAGE/"
-          cp LICENSE.md "$STAGE/"
+          RELEASE_STAGE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION-RELEASE"
+          DEBUG_STAGE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION-DEBUG"
+          RELEASE_ARCHIVE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION-RELEASE.zip"
+          DEBUG_ARCHIVE="$RUNNER_TEMP/VoodooPS2-FocalTech-$VERSION-DEBUG.zip"
 
-          ditto -c -k --sequesterRsrc --keepParent "$STAGE" "$ARCHIVE"
-          shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+          rm -rf "$RELEASE_STAGE" "$DEBUG_STAGE" "$RELEASE_ARCHIVE" "$DEBUG_ARCHIVE"
+          mkdir -p "$RELEASE_STAGE" "$DEBUG_STAGE"
 
-          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
-          echo "checksum=$ARCHIVE.sha256" >> "$GITHUB_OUTPUT"
+          for stage in "$RELEASE_STAGE" "$DEBUG_STAGE"; do
+            cp CREDITS.md "$stage/"
+            cp LICENSE.md "$stage/"
+          done
+
+          cp -R "$RELEASE_OUT/Kexts" "$RELEASE_STAGE/"
+          cp "$RELEASE_OUT/INSTALL.txt" "$RELEASE_STAGE/"
+          cp "$RELEASE_OUT/SUPPORTED-HARDWARE.md" "$RELEASE_STAGE/"
+          cp "$RELEASE_OUT/SOURCE-COMMIT.txt" "$RELEASE_STAGE/"
+          cp "$RELEASE_OUT/VOODOOINPUT-VERSION.txt" "$RELEASE_STAGE/"
+          cp "$RELEASE_OUT/BUILD-CONFIGURATION.txt" "$RELEASE_STAGE/"
+
+          cp -R "$DEBUG_OUT/Kexts" "$DEBUG_STAGE/"
+          [[ ! -d "$DEBUG_OUT/Symbols" ]] || cp -R "$DEBUG_OUT/Symbols" "$DEBUG_STAGE/"
+          cp "$DEBUG_OUT/INSTALL.txt" "$DEBUG_STAGE/"
+          cp "$DEBUG_OUT/SUPPORTED-HARDWARE.md" "$DEBUG_STAGE/"
+          cp "$DEBUG_OUT/SOURCE-COMMIT.txt" "$DEBUG_STAGE/"
+          cp "$DEBUG_OUT/VOODOOINPUT-VERSION.txt" "$DEBUG_STAGE/"
+          cp "$DEBUG_OUT/BUILD-CONFIGURATION.txt" "$DEBUG_STAGE/"
+
+          ditto -c -k --sequesterRsrc --keepParent "$RELEASE_STAGE" "$RELEASE_ARCHIVE"
+          ditto -c -k --sequesterRsrc --keepParent "$DEBUG_STAGE" "$DEBUG_ARCHIVE"
+          shasum -a 256 "$RELEASE_ARCHIVE" > "$RELEASE_ARCHIVE.sha256"
+          shasum -a 256 "$DEBUG_ARCHIVE" > "$DEBUG_ARCHIVE.sha256"
+
+          echo "release_archive=$RELEASE_ARCHIVE" >> "$GITHUB_OUTPUT"
+          echo "release_checksum=$RELEASE_ARCHIVE.sha256" >> "$GITHUB_OUTPUT"
+          echo "debug_archive=$DEBUG_ARCHIVE" >> "$GITHUB_OUTPUT"
+          echo "debug_checksum=$DEBUG_ARCHIVE.sha256" >> "$GITHUB_OUTPUT"
 
       - name: Write release notes
         env:
@@ -100,10 +133,19 @@ jobs:
 
           Stable FocalTech release following the **Acidanthera VoodooPS2 $UPSTREAM_VERSION release line**.
 
-          ### Hardware and macOS validation
+          ### Downloads
+          - **\`VoodooPS2-FocalTech-$VERSION-RELEASE.zip\` — recommended for normal users.** This is a precompiled, ready-to-use package; Xcode and source compilation are not required.
+          - **\`VoodooPS2-FocalTech-$VERSION-DEBUG.zip\` — for developers, diagnostics and hardware bring-up.** It is not recommended for normal daily use when the Release package works correctly. Debug symbols are included when produced by the build.
+
+          Both packages contain installation instructions, hardware limitations, credits, source commit metadata and the pinned VoodooInput version.
+
+          ### Hardware scope and limitations
+          This fork targets **FocalTech PS/2 trackpads**. It is not intended as a replacement for the normal VoodooPS2 support for Synaptics, ELAN/Elantech, ALPS, Sentelic or generic PS/2 mouse/trackpad hardware.
+
           - **FLT0101** — hardware validated; mux-safe i8042 path; **do not use** \`foclegacy=1\`.
           - **FLT0102** — hardware validated; simple AUX compatibility path; **use** \`foclegacy=1\`.
           - **FLT0103** — protocol support is experimental and not yet hardware-validated.
+          - Other/unknown FocalTech PS/2 devices may be tried, but are experimental until validated on physical hardware.
           - Validated on **macOS Sequoia** and **macOS Tahoe** on tested FLT0101/FLT0102 hardware.
 
           ### Confirmed functions
@@ -127,20 +169,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
-          ARCHIVE: ${{ steps.package.outputs.archive }}
-          CHECKSUM: ${{ steps.package.outputs.checksum }}
+          RELEASE_ARCHIVE: ${{ steps.package.outputs.release_archive }}
+          RELEASE_CHECKSUM: ${{ steps.package.outputs.release_checksum }}
+          DEBUG_ARCHIVE: ${{ steps.package.outputs.debug_archive }}
+          DEBUG_CHECKSUM: ${{ steps.package.outputs.debug_checksum }}
         run: |
           gh release create "$VERSION" \
             --target "$GITHUB_SHA" \
             --title "VoodooPS2-FocalTech $VERSION" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
-            "$ARCHIVE" \
-            "$CHECKSUM"
+            "$RELEASE_ARCHIVE" \
+            "$RELEASE_CHECKSUM" \
+            "$DEBUG_ARCHIVE" \
+            "$DEBUG_CHECKSUM"
 
-      - name: Upload release build log
+      - name: Upload release build logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: VoodooPS2-FocalTech-${{ steps.version.outputs.version }}-build-log
-          path: build.log
+          name: VoodooPS2-FocalTech-${{ steps.version.outputs.version }}-build-logs
+          path: |
+            build-release.log
+            build-debug.log
           if-no-files-found: ignore
