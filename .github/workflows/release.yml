@@ -101,6 +101,7 @@ jobs:
           cp -R "$RELEASE_OUT/Kexts" "$RELEASE_STAGE/"
           cp "$RELEASE_OUT/INSTALL.txt" "$RELEASE_STAGE/"
           cp "$RELEASE_OUT/SUPPORTED-HARDWARE.md" "$RELEASE_STAGE/"
+          cp "$RELEASE_OUT/FTE0001.md" "$RELEASE_STAGE/"
           cp "$RELEASE_OUT/SOURCE-COMMIT.txt" "$RELEASE_STAGE/"
           cp "$RELEASE_OUT/VOODOOINPUT-VERSION.txt" "$RELEASE_STAGE/"
           cp "$RELEASE_OUT/BUILD-CONFIGURATION.txt" "$RELEASE_STAGE/"
@@ -109,6 +110,7 @@ jobs:
           [[ ! -d "$DEBUG_OUT/Symbols" ]] || cp -R "$DEBUG_OUT/Symbols" "$DEBUG_STAGE/"
           cp "$DEBUG_OUT/INSTALL.txt" "$DEBUG_STAGE/"
           cp "$DEBUG_OUT/SUPPORTED-HARDWARE.md" "$DEBUG_STAGE/"
+          cp "$DEBUG_OUT/FTE0001.md" "$DEBUG_STAGE/"
           cp "$DEBUG_OUT/SOURCE-COMMIT.txt" "$DEBUG_STAGE/"
           cp "$DEBUG_OUT/VOODOOINPUT-VERSION.txt" "$DEBUG_STAGE/"
           cp "$DEBUG_OUT/BUILD-CONFIGURATION.txt" "$DEBUG_STAGE/"
@@ -134,22 +136,26 @@ jobs:
           Stable FocalTech release following the **Acidanthera VoodooPS2 $UPSTREAM_VERSION release line**.
 
           ### Downloads
-          - **\`VoodooPS2-FocalTech-$VERSION-RELEASE.zip\` — recommended for normal users.** This is a precompiled, ready-to-use package; Xcode and source compilation are not required.
-          - **\`VoodooPS2-FocalTech-$VERSION-DEBUG.zip\` — for developers, diagnostics and hardware bring-up.** It is not recommended for normal daily use when the Release package works correctly. Debug symbols are included when produced by the build.
+          - **\`VoodooPS2-FocalTech-$VERSION-RELEASE.zip\` — recommended for normal users on validated hardware.** This is a precompiled, ready-to-use package; Xcode and source compilation are not required.
+          - **\`VoodooPS2-FocalTech-$VERSION-DEBUG.zip\` — for developers, diagnostics and hardware bring-up.** Use this for experimental/unvalidated hardware work. Debug symbols are included when produced by the build.
 
-          Both packages contain installation instructions, hardware limitations, credits, source commit metadata and the pinned VoodooInput version.
+          Both packages contain installation instructions, hardware limitations, FTE0001 testing notes, credits, source commit metadata and the pinned VoodooInput version.
 
           ### Hardware scope and limitations
           This fork targets **FocalTech PS/2 trackpads**. It is not intended as a replacement for the normal VoodooPS2 support for Synaptics, ELAN/Elantech, ALPS, Sentelic or generic PS/2 mouse/trackpad hardware.
 
-          - **FLT0101** — hardware validated; mux-safe i8042 path; **do not use** \`foclegacy=1\`.
-          - **FLT0102** — hardware validated; simple AUX compatibility path; **use** \`foclegacy=1\`.
-          - **FLT0103** — protocol support is experimental and not yet hardware-validated.
+          - **FLT0101** — hardware validated; mux-safe i8042 path; **do not use** \`foclegacy=1\` or \`focfte=1\`.
+          - **FLT0102** — hardware validated; simple AUX compatibility path; **use** \`foclegacy=1\`; do **not** use \`focfte=1\`.
+          - **FLT0103** — FLT protocol support is experimental and not yet hardware-validated.
+          - **FTE0001** — separate 8/16-byte protocol backend; **experimental / opt-in with \`focfte=1\`** until physically validated in this fork.
           - Other/unknown FocalTech PS/2 devices may be tried, but are experimental until validated on physical hardware.
-          - Validated on **macOS Sequoia** and **macOS Tahoe** on tested FLT0101/FLT0102 hardware.
+          - FLT0101/FLT0102 validated on **macOS Sequoia** and **macOS Tahoe**.
 
-          ### Confirmed functions
+          ### Confirmed FLT functions
           Cursor movement, native multitouch through VoodooInput, macOS gestures, left/right click, dragging, progressive Force Click / Look Up emulation, sleep/wake reinitialization, and mux-safe probing.
+
+          ### FTE0001 note
+          FTE0001 is a distinct FocalTech protocol family. Its backend is disabled unless \`focfte=1\` is present and initially refuses muxed multi-AUX topologies. Hardware validation must be reported before FTE0001 is promoted from experimental status. See \`FTE0001.md\` in the package.
 
           ### Important for OC Auxiliary Tools (OCAT) users
           If **OC Auxiliary Tools (OCAT)** reports an update for \`VoodooPS2Controller.kext\` on a machine using this fork, **do not let OCAT replace this fork's VoodooPS2 stack with the stock Acidanthera build** unless you intentionally want to remove FocalTech support.
@@ -162,7 +168,7 @@ jobs:
           The public release number follows Acidanthera's VoodooPS2 release line. This fork is **not byte-for-byte identical** to the upstream binary because it includes the FocalTech-specific controller and trackpad changes documented in this repository.
 
           ### Credits
-          Acidanthera and VoodooPS2 contributors; Apple and historical Apple PS/2 contributors; VoodooInput/VoodooI2C contributors; **EMlyDinEsH / ApplePS2SmartTouchPad**; Linux kernel FocalTech/input contributors; earlier VoodooPS2/ApplePS2/RehabMan-era contributors; and StefanAlMare for the modern FocalTech integration in this fork. See \`CREDITS.md\` in the repository/package for full attribution.
+          Acidanthera and VoodooPS2 contributors; Apple and historical Apple PS/2 contributors; VoodooInput/VoodooI2C contributors; **EMlyDinEsH / ApplePS2SmartTouchPad**; **chilledHamza / historical VoodooPS2FocalTech FTE0001 work**; Linux kernel FocalTech/input contributors; earlier VoodooPS2/ApplePS2/RehabMan-era contributors; and StefanAlMare for the modern FocalTech integration in this fork. See \`CREDITS.md\` in the repository/package for full attribution.
           EOF
 
       - name: Publish GitHub release
