@@ -5,26 +5,26 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing VoodooPS2-FocalTech. Please provide the data below so the report can be compared with known FLT0101/FLT0102 hardware.
+        Thanks for testing VoodooPS2-FocalTech. Please provide the data below so the report can be compared with validated FLT0101/FLT0102 hardware and the experimental FLT0103/FTE0001 backends.
   - type: input
     id: laptop
     attributes:
       label: Laptop model
-      placeholder: ASUS X550VX
+      placeholder: ASUS X550VX / Haier Y11C / other
     validations:
       required: true
   - type: input
     id: focaltech-id
     attributes:
       label: FocalTech ACPI / hardware ID
-      placeholder: FLT0101 / FLT0102 / FLT0103
+      placeholder: FLT0101 / FLT0102 / FLT0103 / FTE0001 / other
     validations:
       required: true
   - type: input
     id: macos
     attributes:
       label: macOS version
-      placeholder: macOS 26.x
+      placeholder: macOS Sequoia / Tahoe / exact version
     validations:
       required: true
   - type: input
@@ -43,6 +43,16 @@ body:
         - Used
     validations:
       required: true
+  - type: dropdown
+    id: focfte
+    attributes:
+      label: focfte=1
+      description: Required only for experimental FTE0001 testing. Do not use it for FLT0101/FLT0102.
+      options:
+        - Not used
+        - Used
+    validations:
+      required: true
   - type: textarea
     id: behavior
     attributes:
@@ -54,7 +64,7 @@ body:
     id: ioreg
     attributes:
       label: IORegistry / diagnostic counters
-      description: Paste ioreg -r -c ApplePS2FocalTech -lw0 and relevant PS/2 tree output.
+      description: For FLT use ioreg -r -c ApplePS2FocalTech -lw0. For FTE0001 use ioreg -r -c ApplePS2FTE0001 -lw0. Also include the relevant PS/2 tree.
       render: shell
   - type: textarea
     id: linux
