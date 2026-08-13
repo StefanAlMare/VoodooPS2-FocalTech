@@ -4,14 +4,17 @@ VoodooPS2-FocalTech is a specialised VoodooPS2 fork for **FocalTech PS/2 trackpa
 
 ## Hardware status
 
-| Hardware ID | Status | Notes |
-|---|---|---|
-| **FLT0101** | ✅ Hardware validated | i8042 mux-safe path; tested with four AUX nubs; do **not** use `foclegacy=1` |
-| **FLT0102** | ✅ Hardware validated | simple i8042 AUX path; requires `foclegacy=1` on the validated system |
-| **FLT0103** | 🧪 Experimental | protocol-family support is implemented, but no physical FLT0103 device has yet been validated |
-| Other FocalTech PS/2 IDs | 🧪 Unsupported / experimental | may be tried for testing, but compatibility is not claimed |
+| Hardware ID | Protocol family | Status | Notes |
+|---|---|---|---|
+| **FLT0101** | FLT six-byte native | ✅ Hardware validated | i8042 mux-safe path; tested with four AUX nubs; do **not** use `foclegacy=1` |
+| **FLT0102** | FLT six-byte native | ✅ Hardware validated | simple i8042 AUX path; requires `foclegacy=1` on the validated system |
+| **FLT0103** | FLT six-byte native | 🧪 Experimental | protocol-family support is implemented, but no physical FLT0103 device has yet been validated |
+| **FTE0001** | FTE 8/16-byte legacy | 🧪 Experimental / opt-in | separate backend; requires `focfte=1`; initially restricted to a simple single-AUX topology |
+| Other FocalTech PS/2 IDs | Unknown | 🧪 Unsupported / experimental | may be tried for testing, but compatibility is not claimed |
 
 The validated FLT0101 and FLT0102 systems have been tested successfully on **macOS Sequoia** and **macOS Tahoe**.
+
+`FTE0001` is a different protocol family from FLT0101/0102/0103. It is implemented as a separate `ApplePS2FTE0001` client inside the same `VoodooPS2FocalTech.kext`, and it does not probe unless `focfte=1` is present. See [`FTE0001.md`](FTE0001.md).
 
 ## What this package is for
 
@@ -23,7 +26,8 @@ The package provides:
 - `VoodooPS2Keyboard.kext`;
 - pinned `VoodooInput.kext`;
 - standalone `VoodooPS2FocalTech.kext`;
-- native macOS multitouch reporting through VoodooInput.
+- native macOS multitouch reporting through VoodooInput;
+- an opt-in experimental FTE0001 backend.
 
 ## What this package is not for
 
@@ -43,11 +47,14 @@ The final FocalTech package deliberately omits the stock VoodooPS2 mouse and tra
 
 An unvalidated FocalTech PS/2 device may be tested, but that is **experimental**. Do not interpret the presence of the FocalTech name alone as a compatibility guarantee.
 
-For unknown hardware:
+For unknown FLT-family hardware:
 
 1. start without `foclegacy=1` unless the device specifically exhibits the FLT0102-style incomplete PS/2 tree;
-2. use the DEBUG package when collecting diagnostics;
-3. report the ACPI hardware ID, IORegistry tree and FocalTech diagnostic counters in an issue.
+2. do not use `focfte=1` unless testing the separate FTE0001 protocol family;
+3. use a DEBUG build/artifact when collecting diagnostics;
+4. report the ACPI hardware ID, IORegistry tree and FocalTech diagnostic counters in an issue.
+
+For FTE0001 testing, follow [`Docs/FTE0001.md`](FTE0001.md) and add `focfte=1` only on the test system.
 
 ## Important OCAT note
 
