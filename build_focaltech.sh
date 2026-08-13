@@ -150,7 +150,9 @@ plutil -lint "$PLUGINS/VoodooInput.kext/Contents/Info.plist"
 strings "$OUT/Kexts/VoodooPS2Controller.kext/Contents/MacOS/VoodooPS2Controller" | grep -q foclegacy \
     || die "patched controller marker not present in final binary"
 strings "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/MacOS/VoodooPS2FocalTech" | grep -q ApplePS2FocalTech \
-    || die "FocalTech class not present in final binary"
+    || die "FLT FocalTech class not present in final binary"
+strings "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/MacOS/VoodooPS2FocalTech" | grep -q ApplePS2FTE0001 \
+    || die "experimental FTE0001 class not present in final binary"
 
 if [[ "$CONFIGURATION" == "Debug" ]]; then
     mkdir -p "$OUT/Symbols"
@@ -174,17 +176,25 @@ OpenCore Kernel -> Add order:
 3. VoodooPS2FocalTech.kext
 4. VoodooPS2Controller.kext/Contents/PlugIns/VoodooInput.kext
 
-FLT0101: do NOT use foclegacy=1
-FLT0102: add boot-arg foclegacy=1
-FLT0103: experimental; start without foclegacy=1
+FLT0101: do NOT use foclegacy=1 or focfte=1
+FLT0102: add boot-arg foclegacy=1; do NOT use focfte=1
+FLT0103: experimental; start without foclegacy=1 and without focfte=1
+FTE0001: experimental separate protocol backend; add boot-arg focfte=1 only when testing FTE0001
 
 Validated on macOS Sequoia and macOS Tahoe on tested FLT0101/FLT0102 hardware.
+FTE0001 is implemented but is NOT yet hardware-validated in this fork.
 
 HARDWARE SCOPE / LIMITATIONS:
 This fork targets FocalTech PS/2 trackpads. It is not intended as a replacement
 for the normal VoodooPS2 Synaptics, ELAN/Elantech, ALPS, Sentelic or generic
 mouse/trackpad plugins. Other or unknown FocalTech PS/2 devices may be tried,
 but are experimental until validated on physical hardware.
+
+FTE0001 TESTING:
+FTE0001 uses a different 8/16-byte FocalTech protocol family and a separate
+ApplePS2FTE0001 backend. It is disabled unless focfte=1 is present and the
+initial implementation refuses muxed multi-AUX controller layouts. Use a DEBUG
+artifact/build and read Docs/FTE0001.md before treating it as supported hardware.
 
 IMPORTANT FOR OC AUXILIARY TOOLS (OCAT) USERS:
 OCAT may offer the stock Acidanthera VoodooPS2Controller as an update because
@@ -198,16 +208,18 @@ EOF
 
 if [[ "$CONFIGURATION" == "Release" ]]; then
     cat >> "$OUT/INSTALL.txt" <<'EOF'
-Recommended for normal use. This is the ready-to-use package for end users.
+Recommended for normal use on hardware validated by the current stable release.
+For experimental FTE0001 testing, prefer a current DEBUG artifact/build.
 EOF
 else
     cat >> "$OUT/INSTALL.txt" <<'EOF'
-For development, diagnostics and hardware bring-up. Not recommended as the
-normal daily-use package when the RELEASE build works correctly.
+For development, diagnostics and hardware bring-up. Use this configuration for
+experimental FTE0001 testing and unvalidated hardware reports.
 EOF
 fi
 
 cp "$WORK/repo/Docs/SUPPORTED-HARDWARE.md" "$OUT/SUPPORTED-HARDWARE.md"
+cp "$WORK/repo/Docs/FTE0001.md" "$OUT/FTE0001.md"
 printf '%s\n' "$SOURCE_COMMIT" > "$OUT/SOURCE-COMMIT.txt"
 printf '%s\n' "$VINPUT_VERSION" > "$OUT/VOODOOINPUT-VERSION.txt"
 printf '%s\n' "$CONFIGURATION" > "$OUT/BUILD-CONFIGURATION.txt"
@@ -223,6 +235,7 @@ echo "$OUT"
 echo "Configuration: $CONFIGURATION"
 echo "FocalTech version: $FOCAL_VERSION"
 echo "VoodooInput pinned: $VINPUT_VERSION"
-echo "FLT0101: no foclegacy=1"
-echo "FLT0102: foclegacy=1"
+echo "FLT0101: no foclegacy=1, no focfte=1"
+echo "FLT0102: foclegacy=1, no focfte=1"
 echo "FLT0103: experimental"
+echo "FTE0001: experimental, focfte=1"
