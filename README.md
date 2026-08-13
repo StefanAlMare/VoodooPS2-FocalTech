@@ -4,6 +4,15 @@ A maintained fork of [Acidanthera/VoodooPS2](https://github.com/acidanthera/Vood
 
 The FocalTech driver reports through **VoodooInput / native macOS multitouch**, instead of implementing macOS gestures itself.
 
+## Downloads
+
+For most users, download a precompiled package from **[Releases](https://github.com/StefanAlMare/VoodooPS2-FocalTech/releases)**. You do **not** need Xcode or source compilation to install the Release package.
+
+- **`VoodooPS2-FocalTech-<version>-RELEASE.zip`** — ready-to-use package, recommended for normal use.
+- **`VoodooPS2-FocalTech-<version>-DEBUG.zip`** — development/diagnostics package for contributors, hardware bring-up and bug reports. Use this when collecting diagnostics for unvalidated hardware; it is not recommended for normal daily use when RELEASE works correctly.
+
+Both packages include installation instructions, credits, source/build metadata and **`SUPPORTED-HARDWARE.md`**, which states the supported hardware and limitations. See [Docs/SUPPORTED-HARDWARE.md](Docs/SUPPORTED-HARDWARE.md) before trying the driver on unvalidated hardware.
+
 ## Status
 
 | Hardware ID | Status | Controller layout | Notes |
@@ -11,6 +20,8 @@ The FocalTech driver reports through **VoodooInput / native macOS multitouch**, 
 | **FLT0101** | ✅ Hardware validated | i8042 active multiplexing / 4 AUX nubs | Mux-safe path; no legacy boot argument |
 | **FLT0102** | ✅ Hardware validated | simple i8042 AUX | use `foclegacy=1` |
 | **FLT0103** | 🧪 Experimental | FocalTech PS/2 family | protocol support expected, not hardware-validated yet |
+
+Other/unknown FocalTech PS/2 devices may be tried for testing, but compatibility is **experimental until physically validated**. This fork is not intended for unrelated Synaptics, non-FocalTech ELAN/Elantech, ALPS, Sentelic or generic PS/2 touchpad/mouse hardware.
 
 ### macOS validation
 
@@ -62,7 +73,7 @@ VoodooPS2Controller
 
 GitHub Actions **artifacts** are build outputs used for continuous integration and development verification. They are not the long-term public distribution channel.
 
-Stable, user-facing binaries are published under **Releases**.
+Stable, user-facing binaries are published under **Releases** as both RELEASE and DEBUG packages.
 
 ### Release numbering policy
 
@@ -76,22 +87,31 @@ Release numbers intentionally track upstream, but a FocalTech release is **not c
 
 ## Build
 
+Precompiled packages are available under Releases. Building from source is intended for development.
+
 Requirements: macOS, full Xcode, Git and Internet access.
+
+Release build:
 
 ```bash
 chmod +x build_focaltech.sh
 ./build_focaltech.sh
 ```
 
-The build is done in an isolated temporary copy and produces:
+Debug build:
+
+```bash
+BUILD_CONFIGURATION=Debug ./build_focaltech.sh
+```
+
+The build is done in an isolated temporary copy and produces a complete FocalTech stack containing:
 
 ```text
-~/Desktop/VoodooPS2-FocalTech-Build/Kexts/
-├── VoodooPS2Controller.kext
-│   └── Contents/PlugIns/
-│       ├── VoodooPS2Keyboard.kext
-│       └── VoodooInput.kext
-└── VoodooPS2FocalTech.kext
+VoodooPS2Controller.kext
+├── Contents/PlugIns/VoodooPS2Keyboard.kext
+└── Contents/PlugIns/VoodooInput.kext
+
+VoodooPS2FocalTech.kext
 ```
 
 The script applies the FLT0102 controller compatibility patch only in the temporary build tree. If upstream changes the expected controller startup blocks, the patch **fails closed** and asks for review instead of producing an unreviewed binary.
