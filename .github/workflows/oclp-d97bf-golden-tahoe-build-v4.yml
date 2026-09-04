@@ -1,0 +1,189 @@
+name: D97BF v4 Golden-identical Tahoe eligibility build
+
+on:
+  push:
+    branches: [oclp-d97bf-golden-tahoe-build]
+    paths: ['.github/workflows/oclp-d97bf-golden-tahoe-build-v4.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  d97bf:
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    env:
+      GOLDEN_COMMIT: b9df76ebdf3e768b37c1cc980e8444aa837c623e
+      GOLDEN_REPO: https://github.com/dortania/OpenCore-Legacy-Patcher.git
+      PYTHON_BIN: /Library/Frameworks/Python.framework/Versions/3.11/bin/python3
+      DETECT: opencore_legacy_patcher/sys_patch/patchsets/detect.py
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Exact-source gates build package and audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/oclp-d97bf"
+          out="$GITHUB_WORKSPACE/D97BF-output"
+          rm -rf "$src" "$out"
+          mkdir -p "$src" "$out"
+
+          test "$RUNNER_OS" = macOS
+          test "$RUNNER_ARCH" = X64
+          cd "$src"
+          git init
+          git remote add origin "$GOLDEN_REPO"
+          git fetch --depth=1 origin "$GOLDEN_COMMIT"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$GOLDEN_COMMIT"
+          test -z "$(git status --porcelain)"
+          tree="$(git rev-parse HEAD^{tree})"
+
+          grep -F 'self.patcher_version:                 str = "2.5.0"' opencore_legacy_patcher/constants.py
+          grep -F 'self.patcher_support_pkg_version:     str = "1.9.6"' opencore_legacy_patcher/constants.py
+          grep -E '^    tahoe = +25$' opencore_legacy_patcher/datasets/os_data.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('opencore_legacy_patcher/sys_patch/patchsets/detect.py')
+          s=p.read_text(encoding='utf-8')
+          old='        _max_os = os_data.sequoia.value\n'
+          new='        _max_os = os_data.tahoe.value\n'
+          if s.count(old) != 1 or s.count(new) != 0:
+              raise SystemExit('D97BF_BAD_GATE_PREIMAGE')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+
+          git diff --check
+          test "$(git diff --name-only)" = "$DETECT"
+          test "$(git diff --numstat)" = "$(printf '1\t1\t%s' "$DETECT")"
+          test "$(git status --porcelain | wc -l | tr -d ' ')" = 1
+          git diff -- "$DETECT" | tee "$out/D97BF_APPLIED_SOURCE.diff"
+          echo 'D97BF_ONE_FILE_ONE_LINE_DIFF=PASS'
+
+          cat > "$out/D97BF_EXPECTED_GOLDEN_BLOBS.txt" <<'EOF'
+          bdba8738efe1be132427200e0c9a842998e21b86  opencore_legacy_patcher/constants.py
+          094ec597de4ed6b09c42d49d8aceda7888d7fde2  opencore_legacy_patcher/datasets/os_data.py
+          5ef1ae0f541c413974906a125ad76704680e127c  opencore_legacy_patcher/sys_patch/patchsets/hardware/graphics/intel_haswell.py
+          4276b1aede0134b4d2bbd6980fb3f0e1214302ad  opencore_legacy_patcher/sys_patch/patchsets/shared_patches/metal_3802.py
+          d92544778cba207baa462b1650a6a9a5742d284d  opencore_legacy_patcher/sys_patch/sys_patch.py
+          e4c153e11bd7e5f41c991af83c4c77bc8495a844  opencore_legacy_patcher/sys_patch/sys_patch_helpers.py
+          6530e14311fd0ff798395a363ecfc7f4eba78caa  opencore_legacy_patcher/support/metallib_handler.py
+          EOF
+          : > "$out/D97BF_ACTUAL_GOLDEN_BLOBS.txt"
+          while read -r expected file; do
+            actual="$(git hash-object "$file")"
+            test "$actual" = "$expected"
+            echo "$actual  $file" >> "$out/D97BF_ACTUAL_GOLDEN_BLOBS.txt"
+          done < "$out/D97BF_EXPECTED_GOLDEN_BLOBS.txt"
+          cmp "$out/D97BF_EXPECTED_GOLDEN_BLOBS.txt" "$out/D97BF_ACTUAL_GOLDEN_BLOBS.txt"
+          echo 'D97BF_PROTECTED_FUNCTIONAL_SOURCE_IDENTITY=PASS'
+
+          /usr/bin/python3 -m compileall -q opencore_legacy_patcher
+          test "$(grep -cF '_max_os = os_data.tahoe.value' "$DETECT")" = 1
+          test "$(grep -cF '_max_os = os_data.sequoia.value' "$DETECT")" = 0
+          echo 'D97BF_COMPILE_AND_TAHOE_GATE=PASS'
+
+          if [ ! -x "$PYTHON_BIN" ]; then
+            curl -fL --retry 3 --retry-delay 5 https://www.python.org/ftp/python/3.11.9/python-3.11.9-macos11.pkg -o "$RUNNER_TEMP/python311.pkg"
+            sudo /usr/sbin/installer -pkg "$RUNNER_TEMP/python311.pkg" -target /
+          fi
+          "$PYTHON_BIN" --version
+          "$PYTHON_BIN" -m pip install --upgrade pip
+          "$PYTHON_BIN" -m pip install -r requirements.txt
+          echo 'D97BF_BUILD_ENV=PASS'
+
+          "$PYTHON_BIN" Build-Project.command --run-as-individual-steps --reset-dmg-cache --prepare-assets
+          echo 'D97BF_PREPARE_ASSETS=PASS'
+
+          "$PYTHON_BIN" Build-Project.command \
+            --run-as-individual-steps \
+            --reset-pyinstaller-cache \
+            --prepare-application \
+            --git-branch 'D97BF Golden b9df76 + Tahoe eligibility only' \
+            --git-commit-url 'https://github.com/dortania/OpenCore-Legacy-Patcher/commit/b9df76ebdf3e768b37c1cc980e8444aa837c623e' \
+            --git-commit-date '2026-09-05T00:00:00Z'
+
+          app='dist/OpenCore-Patcher.app'
+          exe="$app/Contents/MacOS/OpenCore-Patcher"
+          test -d "$app"
+          test -x "$exe"
+          ver="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
+          test "$ver" = 2.5.0
+          archs="$(/usr/bin/lipo -archs "$exe")"
+          case " $archs " in *' x86_64 '*) ;; *) exit 1;; esac
+          echo "D97BF_APP_VERSION=$ver"
+          echo "D97BF_APP_ARCHS=$archs"
+          echo 'D97BF_APP_BUILD_AND_BASIC_AUDIT=PASS'
+
+          shasum -a 256 "$exe" | tee "$out/OpenCore-Patcher.executable.sha256"
+          "$PYTHON_BIN" - "$app" "$out/OpenCore-Patcher.bundle-manifest.tsv" <<'PY'
+          from pathlib import Path
+          import hashlib,sys
+          root=Path(sys.argv[1]); dst=Path(sys.argv[2]); rows=[]
+          for p in sorted(root.rglob('*'),key=lambda x:x.as_posix()):
+              rel=p.relative_to(root).as_posix()
+              if p.is_symlink(): rows.append(('SYMLINK',p.readlink().as_posix(),rel))
+              elif p.is_file():
+                  h=hashlib.sha256()
+                  with p.open('rb') as f:
+                      for chunk in iter(lambda:f.read(8*1024*1024),b''): h.update(chunk)
+                  rows.append(('FILE',h.hexdigest(),rel))
+              elif p.is_dir(): rows.append(('DIR','-',rel))
+          dst.write_text(''.join(f'{kind}\t{value}\t{rel}\n' for kind,value,rel in rows))
+          print('D97BF_BUNDLE_MANIFEST_ENTRIES='+str(len(rows)))
+          PY
+          shasum -a 256 "$out/OpenCore-Patcher.bundle-manifest.tsv" | tee "$out/OpenCore-Patcher.bundle-manifest.sha256"
+
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$app" "$out/OCLP-2.5.0-b9df76-TahoeEligibilityOnly.app.zip"
+          /usr/bin/hdiutil create -volname 'OCLP 2.5.0 D97BF Tahoe Eligibility' -srcfolder "$app" -ov -format UDZO "$out/OCLP-2.5.0-b9df76-TahoeEligibilityOnly.dmg"
+          shasum -a 256 "$out/OCLP-2.5.0-b9df76-TahoeEligibilityOnly.app.zip" | tee "$out/OCLP-2.5.0-b9df76-TahoeEligibilityOnly.app.zip.sha256"
+          shasum -a 256 "$out/OCLP-2.5.0-b9df76-TahoeEligibilityOnly.dmg" | tee "$out/OCLP-2.5.0-b9df76-TahoeEligibilityOnly.dmg.sha256"
+          shasum -a 256 "$out/D97BF_APPLIED_SOURCE.diff" | tee "$out/D97BF_APPLIED_SOURCE.diff.sha256"
+
+          {
+            echo 'D97BF_AUDIT_VERSION=4'
+            echo "D97BF_CARRIER_REPOSITORY=$GITHUB_REPOSITORY"
+            echo "D97BF_CARRIER_HEAD=$GITHUB_SHA"
+            echo "D97BF_RUN_ID=$GITHUB_RUN_ID"
+            echo "D97BF_RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT"
+            echo "D97BF_BASE_COMMIT=$GOLDEN_COMMIT"
+            echo "D97BF_BASE_TREE=$tree"
+            echo 'D97BF_OCLP_VERSION=2.5.0'
+            echo 'D97BF_PATCHER_SUPPORT_PKG=1.9.6'
+            echo 'D97BF_TAHOE_DARWIN=25'
+            echo "D97BF_CHANGED_FILE=$DETECT"
+            echo 'D97BF_DIFF_NUMSTAT=1:1'
+            echo 'D97BF_ONE_FILE_ONE_LINE_DIFF=PASS'
+            echo 'D97BF_PROTECTED_FUNCTIONAL_SOURCE_IDENTITY=PASS'
+            echo 'D97BF_COMPILE_AND_TAHOE_GATE=PASS'
+            echo 'D97BF_APP_BUILD_AND_BASIC_AUDIT=PASS'
+            echo "D97BF_APP_ARCHS=$archs"
+            echo 'D97BF_ROOT_PATCH=AUTO-NO'
+            echo 'D97BF_REBOOT=AUTO-NO'
+            echo 'D97BF_FINAL=PASS'
+          } | tee "$out/D97BF_AUDIT_REPORT.txt"
+
+          (cd "$out" && shasum -a 256 \
+            D97BF_AUDIT_REPORT.txt \
+            D97BF_APPLIED_SOURCE.diff \
+            D97BF_ACTUAL_GOLDEN_BLOBS.txt \
+            OpenCore-Patcher.bundle-manifest.tsv \
+            OCLP-2.5.0-b9df76-TahoeEligibilityOnly.app.zip \
+            OCLP-2.5.0-b9df76-TahoeEligibilityOnly.dmg) > "$out/SHA256SUMS-D97BF.txt"
+          echo 'D97BF_PACKAGE_IDENTITY=PASS'
+
+      - name: Upload D97BF delivery
+        uses: actions/upload-artifact@v4
+        with:
+          name: OCLP-D97BF-Golden-b9df76-TahoeEligibilityOnly-v4
+          path: D97BF-output/
+          if-no-files-found: error
+          retention-days: 30
