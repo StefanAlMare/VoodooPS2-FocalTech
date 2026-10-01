@@ -3,6 +3,19 @@ VoodooPS2-FocalTech Changelog
 
 ## Fork-specific development after stable 2.3.7
 
+### Upstream/build review — 2026-10-01
+
+- Confirmed latest public upstream VoodooPS2 is still 2.3.7; upstream master `7eab4a3` is already an ancestor of this fork. No missing upstream commits to merge.
+- Reviewed the post-release development version bump to 2.3.8 and CI updates; no controller, ApplePS2MouseDevice, keyboard or trackpad runtime changes were introduced upstream after 2.3.7.
+- Kept VoodooInput pinned to public 1.1.6; its only post-release source change is the development version bump to 1.1.7.
+- Preserved FLT0101/FLT0102/FLT0103 and the experimental `focfte` backend; the `foclegacy` patch requires no runtime adaptation.
+- Added controller patch regression checks, standalone package validation and bundle/build provenance metadata. Builds refuse to overwrite existing output directories.
+- Extended FocalTech RELEASE/DEBUG CI to every pull request and master push.
+- Replaced automatic stable publication with a manual draft workflow; generic upstream CI no longer uploads stock packages to fork releases.
+- Documented candidate-specific validation requirements and the difference between development bundle versions and public release versions. No new stable release is published by this update.
+
+### Experimental FTE0001 implementation
+
 - Added an **experimental FTE0001 backend** as a separate `ApplePS2FTE0001` client inside `VoodooPS2FocalTech.kext`.
 - FTE0001 is a separate FocalTech PS/2 protocol family from FLT0101/FLT0102/FLT0103 and uses 8/16-byte reports with up to four contacts.
 - Added explicit opt-in boot argument `focfte=1`; without it the FTE0001 personality refuses to probe.

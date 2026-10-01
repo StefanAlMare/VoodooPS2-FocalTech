@@ -2,6 +2,8 @@
 
 When reporting a FocalTech PS/2 problem, please collect data before changing multiple drivers or controller settings. The goal is to determine whether the failure is device detection, controller routing, packet framing, or VoodooInput reporting.
 
+Include `BUILD-METADATA.json` from current development packages, plus the CI run URL when available. It records the source commit, uncommitted-change flag, configuration, SDK revision, Xcode and actual component versions. Controller `2.3.8` is currently an upstream development version, not evidence of a public 2.3.8 release. A successful build is not a hardware validation report.
+
 ## macOS
 
 ### Loaded kexts

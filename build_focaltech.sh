@@ -22,6 +22,7 @@ fi
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/VoodooPS2-FocalTech.XXXXXX")"
 SOURCE_COMMIT="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)"
+SOURCE_DIRTY="$(git -C "$ROOT" status --porcelain --untracked-files=normal 2>/dev/null || echo unknown)"
 
 say() { printf '\n========== %s ==========\n' "$1"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
@@ -29,11 +30,13 @@ cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
 [[ "$(uname -s)" == "Darwin" ]] || die "build must run on macOS"
-for c in git rsync curl xcodebuild xcode-select python3 plutil ditto strings; do
+for c in git rsync curl xcodebuild xcode-select python3 plutil ditto strings lipo; do
     command -v "$c" >/dev/null 2>&1 || die "missing command: $c"
 done
 [[ "$(xcode-select -p 2>/dev/null || true)" != "/Library/Developer/CommandLineTools" ]] \
     || die "select full Xcode with: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
+[[ "$OUT" == /* ]] || die "BUILD_OUTPUT must be an absolute path"
+[[ ! -e "$OUT" && ! -L "$OUT" ]] || die "output already exists: $OUT; choose a new BUILD_OUTPUT directory"
 
 say "Copy source to isolated build directory"
 rsync -a --exclude '.git' --exclude 'build' --exclude 'DerivedData' "$ROOT/" "$WORK/repo/"
@@ -45,6 +48,7 @@ python3 Scripts/apply-controller-compat.py
 say "Bootstrap MacKernelSDK"
 rm -rf MacKernelSDK
 git clone --depth=1 https://github.com/acidanthera/MacKernelSDK.git MacKernelSDK
+SDK_COMMIT="$(git -C MacKernelSDK rev-parse HEAD)"
 
 say "Bootstrap pinned VoodooInput ${VINPUT_VERSION}"
 rm -rf VoodooInput
@@ -125,7 +129,6 @@ FOCAL="$BUILD/focaltech/VoodooPS2FocalTech.kext"
 [[ -d "$FOCAL" ]] || die "VoodooPS2FocalTech.kext was not produced"
 
 say "Assemble final ${CONFIGURATION} kext set"
-rm -rf "$OUT"
 mkdir -p "$OUT/Kexts"
 ditto "$CONTROLLER" "$OUT/Kexts/VoodooPS2Controller.kext"
 ditto "$FOCAL" "$OUT/Kexts/VoodooPS2FocalTech.kext"
@@ -153,6 +156,11 @@ strings "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/MacOS/VoodooPS2FocalTech" |
     || die "FLT FocalTech class not present in final binary"
 strings "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/MacOS/VoodooPS2FocalTech" | grep -q ApplePS2FTE0001 \
     || die "experimental FTE0001 class not present in final binary"
+strings "$OUT/Kexts/VoodooPS2FocalTech.kext/Contents/MacOS/VoodooPS2FocalTech" | grep -q focfte \
+    || die "experimental FTE0001 opt-in marker not present in final binary"
+
+python3 Scripts/verify-package.py "$OUT" "$CONFIGURATION" "$FOCAL_VERSION" \
+    "$VINPUT_VERSION" "$SOURCE_COMMIT" "$SDK_COMMIT" "${SOURCE_DIRTY:+dirty}"
 
 if [[ "$CONFIGURATION" == "Debug" ]]; then
     mkdir -p "$OUT/Symbols"
@@ -181,7 +189,9 @@ FLT0102: add boot-arg foclegacy=1; do NOT use focfte=1
 FLT0103: experimental; start without foclegacy=1 and without focfte=1
 FTE0001: experimental separate protocol backend; add boot-arg focfte=1 only when testing FTE0001
 
-Validated on macOS Sequoia and macOS Tahoe on tested FLT0101/FLT0102 hardware.
+Development build: compilation does not establish hardware validation.
+Stable 2.3.7 was validated on macOS Sequoia and macOS Tahoe on tested
+FLT0101/FLT0102 hardware. This source commit needs its own regression testing.
 FTE0001 is implemented but is NOT yet hardware-validated in this fork.
 
 HARDWARE SCOPE / LIMITATIONS:
@@ -208,7 +218,7 @@ EOF
 
 if [[ "$CONFIGURATION" == "Release" ]]; then
     cat >> "$OUT/INSTALL.txt" <<'EOF'
-Recommended for normal use on hardware validated by the current stable release.
+Optimized configuration; use a published stable release for normal use.
 For experimental FTE0001 testing, prefer a current DEBUG artifact/build.
 EOF
 else

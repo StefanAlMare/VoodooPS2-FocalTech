@@ -16,6 +16,8 @@ Both stable packages include installation instructions, credits, source/build me
 
 ## Status
 
+Upstream reviewed **2026-10-01**: the latest public VoodooPS2 release is still **2.3.7**. This fork already includes upstream `master` through `7eab4a344d901d1e4aa6ece4189ecde5a7356287`. The controller project carries the **unreleased development version 2.3.8**; that is not a public 2.3.8 release. VoodooInput stays pinned to its latest public release, **1.1.6**. See the [upstream comparison](Docs/UPSTREAM-REVIEW-2026-10-01.md).
+
 | Hardware ID | Protocol family | Status | Controller layout / notes |
 |---|---|---|---|
 | **FLT0101** | FLT six-byte native | ✅ Hardware validated | i8042 active multiplexing / 4 AUX nubs; mux-safe path; no compatibility boot argument |
@@ -109,6 +111,8 @@ The public release number follows the current official **Acidanthera VoodooPS2 r
 
 Release numbers intentionally track upstream, but a FocalTech release is **not claimed to be byte-for-byte identical** to the Acidanthera binary: it contains the FocalTech-specific additions and compatibility changes documented in this repository.
 
+Publishing is manual: **Prepare draft release** builds and checks RELEASE and DEBUG, then creates a draft. A maintainer promotes it only after CI and FLT0101/FLT0102 regression reports for that source commit have been reviewed. Editing `RELEASE_VERSION` never publishes a release. The generic upstream CI produces test artifacts only. See [release policy](Docs/RELEASE-POLICY.md).
+
 ## Build
 
 Precompiled stable packages are available under Releases. Building from source is intended for development.
@@ -139,6 +143,10 @@ VoodooPS2FocalTech.kext
 ```
 
 The script applies the FLT0102 controller compatibility patch only in the temporary build tree. If upstream changes the expected controller startup blocks, the patch **fails closed** and asks for review instead of producing an unreviewed binary.
+
+Choose a new absolute `BUILD_OUTPUT` directory if the default output already exists; existing packages are never deleted by the script. Both configurations include `BUILD-METADATA.json` with the source commit/dirty state, Xcode version, MacKernelSDK revision, and actual bundle versions. At the reviewed upstream revision, controller/keyboard report `2.3.8`, FocalTech `2.3.7`, and VoodooInput `1.1.6`. These component versions do not promote a development artifact to a stable release.
+
+Run `python3 -m unittest discover -s Tests -v` to check controller patch application, repeat application, and refusal of changed upstream startup blocks. The FocalTech CI runs on every pull request and every push to `master`, including controller, provider, project and workflow changes.
 
 ## OpenCore order
 
