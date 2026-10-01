@@ -20,6 +20,8 @@ Any change to mux probing must avoid sending global controller/keyboard compatib
 
 FTE0001 is a separate protocol backend. Changes to `ApplePS2FTE0001` must not alter normal FLT probing when `focfte=1` is absent. Until FTE0001 is validated on physical hardware, keep probing opt-in and avoid muxed multi-AUX controller layouts.
 
+Run `python3 -m unittest discover -s Tests -v` and both standalone build configurations. PR CI exercises the FocalTech stack as well as the stock upstream targets; the stock CI alone does not compile the standalone FocalTech backends. Preserve the package `BUILD-METADATA.json` when submitting hardware reports. See [release policy](Docs/RELEASE-POLICY.md) before preparing a candidate.
+
 ## Attribution
 
 Preserve upstream license headers and contributor notices. If code or behaviour is derived from another open-source implementation, identify that source and its license in the commit/PR description and in source comments where appropriate.

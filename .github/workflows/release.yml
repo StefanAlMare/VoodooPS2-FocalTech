@@ -1,15 +1,11 @@
-name: Publish stable release
+name: Prepare draft release
 
 on:
-  push:
-    branches: [ master ]
-    paths:
-      - 'RELEASE_VERSION'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version/tag (for example 2.3.7)'
-        required: false
+        description: 'New candidate tag (for example 2.3.7-focaltech.1); creates a draft only'
+        required: true
         type: string
 
 permissions:
@@ -20,7 +16,7 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
@@ -37,6 +33,8 @@ jobs:
             VERSION="$(tr -d '[:space:]' < RELEASE_VERSION)"
           fi
           [[ -n "$VERSION" ]] || { echo "Empty release version" >&2; exit 1; }
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-focaltech\.[0-9]+)?$ ]] \
+            || { echo "Invalid release version: $VERSION" >&2; exit 1; }
 
           UPSTREAM_VERSION="$(curl -LfsS https://api.github.com/repos/acidanthera/VoodooPS2/releases/latest | \
             python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')"
@@ -59,6 +57,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check controller compatibility patch
+        run: python3 -m unittest discover -s Tests -v
+
       - name: Build ready-to-use Release package
         env:
           BUILD_CONFIGURATION: Release
@@ -66,7 +67,7 @@ jobs:
         run: |
           set -o pipefail
           chmod +x build_focaltech.sh
-          ./build_focaltech.sh 2>&1 | tee build-release.log
+          ./build_focaltech.sh 2>&1 | tee "$RUNNER_TEMP/build-release.log"
 
       - name: Build developer Debug package
         env:
@@ -74,7 +75,7 @@ jobs:
           BUILD_OUTPUT: ${{ runner.temp }}/FocalTech-Debug
         run: |
           set -o pipefail
-          ./build_focaltech.sh 2>&1 | tee build-debug.log
+          ./build_focaltech.sh 2>&1 | tee "$RUNNER_TEMP/build-debug.log"
 
       - name: Assemble Release and Debug archives
         id: package
@@ -105,6 +106,7 @@ jobs:
           cp "$RELEASE_OUT/SOURCE-COMMIT.txt" "$RELEASE_STAGE/"
           cp "$RELEASE_OUT/VOODOOINPUT-VERSION.txt" "$RELEASE_STAGE/"
           cp "$RELEASE_OUT/BUILD-CONFIGURATION.txt" "$RELEASE_STAGE/"
+          cp "$RELEASE_OUT/BUILD-METADATA.json" "$RELEASE_STAGE/"
 
           cp -R "$DEBUG_OUT/Kexts" "$DEBUG_STAGE/"
           [[ ! -d "$DEBUG_OUT/Symbols" ]] || cp -R "$DEBUG_OUT/Symbols" "$DEBUG_STAGE/"
@@ -114,6 +116,7 @@ jobs:
           cp "$DEBUG_OUT/SOURCE-COMMIT.txt" "$DEBUG_STAGE/"
           cp "$DEBUG_OUT/VOODOOINPUT-VERSION.txt" "$DEBUG_STAGE/"
           cp "$DEBUG_OUT/BUILD-CONFIGURATION.txt" "$DEBUG_STAGE/"
+          cp "$DEBUG_OUT/BUILD-METADATA.json" "$DEBUG_STAGE/"
 
           ditto -c -k --sequesterRsrc --keepParent "$RELEASE_STAGE" "$RELEASE_ARCHIVE"
           ditto -c -k --sequesterRsrc --keepParent "$DEBUG_STAGE" "$DEBUG_ARCHIVE"
@@ -133,10 +136,11 @@ jobs:
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           ## VoodooPS2-FocalTech $VERSION
 
-          Stable FocalTech release following the **Acidanthera VoodooPS2 $UPSTREAM_VERSION release line**.
+          FocalTech release candidate following the **Acidanthera VoodooPS2 $UPSTREAM_VERSION release line**.
+          This draft requires review of CI and hardware reports for its exact source commit before publication. See Docs/RELEASE-POLICY.md.
 
           ### Downloads
-          - **\`VoodooPS2-FocalTech-$VERSION-RELEASE.zip\` — recommended for normal users on validated hardware.** This is a precompiled, ready-to-use package; Xcode and source compilation are not required.
+          - **\`VoodooPS2-FocalTech-$VERSION-RELEASE.zip\` — optimized candidate package for hardware validation.** This is precompiled; Xcode and source compilation are not required.
           - **\`VoodooPS2-FocalTech-$VERSION-DEBUG.zip\` — for developers, diagnostics and hardware bring-up.** Use this for experimental/unvalidated hardware work. Debug symbols are included when produced by the build.
 
           Both packages contain installation instructions, hardware limitations, FTE0001 testing notes, credits, source commit metadata and the pinned VoodooInput version.
@@ -144,14 +148,14 @@ jobs:
           ### Hardware scope and limitations
           This fork targets **FocalTech PS/2 trackpads**. It is not intended as a replacement for the normal VoodooPS2 support for Synaptics, ELAN/Elantech, ALPS, Sentelic or generic PS/2 mouse/trackpad hardware.
 
-          - **FLT0101** — hardware validated; mux-safe i8042 path; **do not use** \`foclegacy=1\` or \`focfte=1\`.
-          - **FLT0102** — hardware validated; simple AUX compatibility path; **use** \`foclegacy=1\`; do **not** use \`focfte=1\`.
+          - **FLT0101** — validated in stable 2.3.7; candidate regression testing required; mux-safe i8042 path; **do not use** \`foclegacy=1\` or \`focfte=1\`.
+          - **FLT0102** — validated in stable 2.3.7; candidate regression testing required; simple AUX compatibility path; **use** \`foclegacy=1\`; do **not** use \`focfte=1\`.
           - **FLT0103** — FLT protocol support is experimental and not yet hardware-validated.
           - **FTE0001** — separate 8/16-byte protocol backend; **experimental / opt-in with \`focfte=1\`** until physically validated in this fork.
           - Other/unknown FocalTech PS/2 devices may be tried, but are experimental until validated on physical hardware.
-          - FLT0101/FLT0102 validated on **macOS Sequoia** and **macOS Tahoe**.
+          - Stable 2.3.7 FLT0101/FLT0102 was validated on **macOS Sequoia** and **macOS Tahoe**. Add candidate-specific test evidence before promotion.
 
-          ### Confirmed FLT functions
+          ### FLT functions to regression-test on this candidate
           Cursor movement, native multitouch through VoodooInput, macOS gestures, left/right click, dragging, progressive Force Click / Look Up emulation, sleep/wake reinitialization, and mux-safe probing.
 
           ### FTE0001 note
@@ -171,7 +175,7 @@ jobs:
           Acidanthera and VoodooPS2 contributors; Apple and historical Apple PS/2 contributors; VoodooInput/VoodooI2C contributors; **EMlyDinEsH / ApplePS2SmartTouchPad**; **chilledHamza / historical VoodooPS2FocalTech FTE0001 work**; Linux kernel FocalTech/input contributors; earlier VoodooPS2/ApplePS2/RehabMan-era contributors; and StefanAlMare for the modern FocalTech integration in this fork. See \`CREDITS.md\` in the repository/package for full attribution.
           EOF
 
-      - name: Publish GitHub release
+      - name: Create draft GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -181,6 +185,7 @@ jobs:
           DEBUG_CHECKSUM: ${{ steps.package.outputs.debug_checksum }}
         run: |
           gh release create "$VERSION" \
+            --draft \
             --target "$GITHUB_SHA" \
             --title "VoodooPS2-FocalTech $VERSION" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
@@ -195,6 +200,6 @@ jobs:
         with:
           name: VoodooPS2-FocalTech-${{ steps.version.outputs.version }}-build-logs
           path: |
-            build-release.log
-            build-debug.log
+            ${{ runner.temp }}/build-release.log
+            ${{ runner.temp }}/build-debug.log
           if-no-files-found: ignore

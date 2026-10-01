@@ -2,14 +2,12 @@ name: FocalTech build
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches: [ master ]
-    paths:
-      - 'FocalTech/**'
-      - 'Scripts/**'
-      - 'Docs/SUPPORTED-HARDWARE.md'
-      - 'build_focaltech.sh'
-      - '.github/workflows/focaltech.yml'
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -26,6 +24,9 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Check controller compatibility patch
+        run: python3 -m unittest discover -s Tests -v
+
       - name: Build FocalTech ${{ matrix.configuration }} package
         shell: bash
         env:
@@ -33,7 +34,7 @@ jobs:
           BUILD_OUTPUT: ${{ runner.temp }}/VoodooPS2-FocalTech-${{ matrix.configuration }}
         run: |
           set -o pipefail
-          ./build_focaltech.sh 2>&1 | tee build-${{ matrix.configuration }}.log
+          ./build_focaltech.sh 2>&1 | tee "$RUNNER_TEMP/build-${{ matrix.configuration }}.log"
 
       - name: Upload package artifact
         if: success()
@@ -47,5 +48,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: VoodooPS2-FocalTech-${{ matrix.configuration }}-build-log
-          path: build-${{ matrix.configuration }}.log
+          path: ${{ runner.temp }}/build-${{ matrix.configuration }}.log
           if-no-files-found: warn

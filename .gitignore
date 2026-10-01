@@ -8,3 +8,4 @@ xcshareddata
 project.xcworkspace
 VoodooInput
 /MacKernelSDK
+__pycache__/
